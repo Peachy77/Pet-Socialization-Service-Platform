@@ -4,16 +4,19 @@
 
 ## 数据表汇总
 
-| 模块     | 表名      | 说明         |
-| -------- | --------- | ------------ |
-| 用户模块 | `user`    | 存储用户信息 |
-| 社交模块 | `post`    | 动态帖子     |
-| 社交模块 | `comment` | 评论         |
-| 社交模块 | `like`    | 点赞记录     |
-| 社交模块 | `follow`  | 关注关系     |
-| 社交模块 | `message` | 聊天消息     |
-| 服务模块 | `service` | 服务商户     |
-| 服务模块 | `order`   | 预约订单     |
+| 模块     | 表名              | 说明           |
+| -------- | ----------------- | -------------- |
+| 用户模块 | `user`            | 存储用户信息   |
+| 社交模块 | `post`            | 动态帖子       |
+| 社交模块 | `comment`         | 评论           |
+| 社交模块 | `like`            | 点赞记录       |
+| 社交模块 | `follow`          | 关注关系       |
+| 社交模块 | `message`         | 聊天消息       |
+| 社交模块 | `private_message` | 私人对话表     |
+| 服务模块 | `service`         | 服务商户       |
+| 服务模块 | `order`           | 预约订单       |
+| 服务模块 | `service_comment` | 商户评论表     |
+| 服务模块 | `favorite`        | （商户）收藏表 |
 
 
 
@@ -66,16 +69,17 @@
 
 ### 4、评论表（comment）
 
-| 字段名      | 数据类型     | 约束                                                         | 说明       |
-| :---------- | :----------- | :----------------------------------------------------------- | :--------- |
-| comment_id  | INT          | PRIMARY KEY AUTO_INCREMENT                                   | 评论ID     |
-| user_id     | INT          | NOT NULL                                                     | 评论者ID   |
-| post_id     | INT          | NOT NULL                                                     | 所属动态ID |
-| content     | VARCHAR(500) | NOT NULL                                                     | 评论内容   |
-| create_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP                                    | 评论时间   |
-| update_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP        | 更新时间   |
-| **外键**    |              | FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE |            |
-| **外键**    |              | FOREIGN KEY (post_id) REFERENCES post(post_id) ON DELETE CASCADE |            |
+| 字段名      | 数据类型     | 约束                                                         | 说明            |
+| :---------- | :----------- | :----------------------------------------------------------- | :-------------- |
+| comment_id  | INT          | PRIMARY KEY AUTO_INCREMENT                                   | 评论ID          |
+| user_id     | INT          | NOT NULL                                                     | 评论者ID        |
+| post_id     | INT          | NOT NULL                                                     | 所属动态ID      |
+| content     | VARCHAR(500) | NOT NULL                                                     | 评论内容        |
+| images      | JSON         |                                                              | 评论图片URL数组 |
+| create_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP                                    | 评论时间        |
+| update_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP        | 更新时间        |
+| **外键**    |              | FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE |                 |
+| **外键**    |              | FOREIGN KEY (post_id) REFERENCES post(post_id) ON DELETE CASCADE |                 |
 
 ### 5、点赞表（like）
 
@@ -97,14 +101,48 @@
 | name             | VARCHAR(100) | NOT NULL                                              | 商户名称                                                     |
 | category         | ENUM         | NOT NULL                                              | 服务类型：grooming(美容)/walking(遛狗)/boarding(寄养)/sitting(托管)/vet(医院)/emergency(救助) |
 | address          | VARCHAR(255) |                                                       | 详细地址                                                     |
+| images           | JSON         |                                                       | 商户图片URL数组，如 `["url1.jpg", "url2.jpg"]`               |
 | phone            | VARCHAR(20)  |                                                       | 联系电话                                                     |
 | rating           | DECIMAL(2,1) | DEFAULT 0.0                                           | 评分（0.0-5.0）                                              |
 | review_count     | INT          | DEFAULT 0                                             | 评价数量                                                     |
+|                  |              |                                                       |                                                              |
 | business_hours   | JSON         |                                                       | 营业时间，如 `{"mon":"9:00-18:00", "tue":"9:00-18:00"}`      |
 | description      | TEXT         |                                                       | 商户介绍                                                     |
 | services_offered | JSON         |                                                       | 提供的服务项目及价格，如 `[{"name":"洗澡", "price":80}, {"name":"美容", "price":150}]` |
 | create_time      | DATETIME     | DEFAULT CURRENT_TIMESTAMP                             | 录入时间                                                     |
 | update_time      | DATETIME     | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间                                                     |
+
+### 收藏表 (favorite) - 新增
+
+用于用户收藏商户（仅针对商户，与动态无关）
+
+| 字段名      | 数据类型 | 约束                                                         | 说明                         |
+| :---------- | :------- | :----------------------------------------------------------- | :--------------------------- |
+| favorite_id | INT      | PRIMARY KEY AUTO_INCREMENT                                   | 收藏记录ID                   |
+| user_id     | INT      | NOT NULL                                                     | 收藏用户ID                   |
+| service_id  | INT      | NOT NULL                                                     | 收藏的商户ID                 |
+| create_time | DATETIME | DEFAULT CURRENT_TIMESTAMP                                    | 收藏时间                     |
+| **约束**    |          | UNIQUE KEY (user_id, service_id)                             | 一个用户只能收藏同一商户一次 |
+| **外键**    |          | FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE |                              |
+| **外键**    |          | FOREIGN KEY (service_id) REFERENCES service(service_id) ON DELETE CASCADE |                              |
+
+###  商户评论表 (service_review) - 新增
+
+用于商户的评论，支持图片，类似动态评论
+
+| 字段名      | 数据类型     | 约束                                                         | 说明            |
+| :---------- | :----------- | :----------------------------------------------------------- | :-------------- |
+| review_id   | INT          | PRIMARY KEY AUTO_INCREMENT                                   | 评论ID          |
+| user_id     | INT          | NOT NULL                                                     | 评论者ID        |
+| service_id  | INT          | NOT NULL                                                     | 商户ID          |
+| rating      | DECIMAL(2,1) |                                                              | 评分（1-5星）   |
+| content     | VARCHAR(500) | NOT NULL                                                     | 评论内容        |
+| images      | JSON         |                                                              | 评论图片URL数组 |
+| create_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP                                    | 评论时间        |
+| update_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP        | 更新时间        |
+| **外键**    |              | FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE |                 |
+| **外键**    |              | FOREIGN KEY (service_id) REFERENCES service(service_id) ON DELETE CASCADE |                 |
+| **索引**    |              | INDEX idx_service_id (service_id, create_time)               | 按商户查询评论  |
 
 ### 7、订单表（order）
 
@@ -137,3 +175,20 @@
 | **外键**    |              | FOREIGN KEY (receiver_id) REFERENCES user(user_id) ON DELETE CASCADE |                                                              |
 | **外键**    |              | FOREIGN KEY (sender_id) REFERENCES user(user_id) ON DELETE SET NULL |                                                              |
 | **索引**    |              | INDEX idx_receiver (receiver_id, is_read, create_time)       | 查询用户未读消息                                             |
+
+### 私信表 (private_message) - 新增
+
+用于用户之间的私信对话（类似聊天对话框）
+
+| 字段名      | 数据类型     | 约束                                                         | 说明            |
+| :---------- | :----------- | :----------------------------------------------------------- | :-------------- |
+| message_id  | INT          | PRIMARY KEY AUTO_INCREMENT                                   | 私信ID          |
+| sender_id   | INT          | NOT NULL                                                     | 发送者ID        |
+| receiver_id | INT          | NOT NULL                                                     | 接收者ID        |
+| content     | VARCHAR(500) | NOT NULL                                                     | 消息内容        |
+| images      | JSON         |                                                              | 消息图片URL数组 |
+| is_read     | BOOLEAN      | DEFAULT FALSE                                                | 是否已读        |
+| create_time | DATETIME     | DEFAULT CURRENT_TIMESTAMP                                    | 发送时间        |
+| **外键**    |              | FOREIGN KEY (sender_id) REFERENCES user(user_id) ON DELETE CASCADE |                 |
+| **外键**    |              | FOREIGN KEY (receiver_id) REFERENCES user(user_id) ON DELETE CASCADE |                 |
+| **索引**    |              | INDEX idx_conversation (sender_id, receiver_id, create_time) | 查询对话记录    |
