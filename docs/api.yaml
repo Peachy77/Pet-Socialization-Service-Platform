@@ -1,0 +1,506 @@
+openapi: 3.0.0
+info:
+  title: Pet Socialization Service Platform API
+  description: 宠物社交服务平台接口文档
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: 本地开发服务器
+
+paths:
+
+  /api/users:
+    get:
+      summary: 获取用户列表
+      tags: [Users]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+    post:
+      summary: 创建用户
+      tags: [Users]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: 创建成功
+
+  /api/users/{id}:
+    get:
+      summary: 获取用户信息
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    put:
+      summary: 更新用户
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: 更新成功
+
+    delete:
+      summary: 删除用户
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 删除成功
+
+
+  /api/follow:
+    post:
+      summary: 关注用户
+      tags: [Follow]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowCreate'
+      responses:
+        '200':
+          description: 关注成功
+
+  /api/follow/{id}:
+    delete:
+      summary: 取消关注
+      tags: [Follow]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 取消关注成功
+
+
+  /api/posts:
+    get:
+      summary: 获取帖子列表
+      tags: [Posts]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+
+    post:
+      summary: 创建帖子
+      tags: [Posts]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostCreate'
+      responses:
+        '201':
+          description: 创建成功
+
+  /api/posts/{id}:
+    delete:
+      summary: 删除帖子
+      tags: [Posts]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: 删除成功
+
+
+  /api/posts/{id}/like:
+    post:
+      summary: 点赞帖子
+      tags: [Likes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 点赞成功
+
+
+  /api/posts/{id}/comments:
+    get:
+      summary: 获取评论
+      tags: [Comments]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+
+    post:
+      summary: 发表评论
+      tags: [Comments]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '201':
+          description: 评论成功
+
+
+  /api/comments/{id}:
+    delete:
+      summary: 删除评论
+      tags: [Comments]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: 删除成功
+
+
+  /api/services:
+    get:
+      summary: 获取服务商户列表
+      tags: [Services]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+
+
+  /api/services/{id}/reviews:
+    get:
+      summary: 获取商户评论
+      tags: [ServiceReviews]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: 成功
+
+
+    post:
+      summary: 创建商户评论
+      tags: [ServiceReviews]
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceReviewCreate'
+      responses:
+        '201':
+          description: 评论成功
+
+
+  /api/favorites:
+    post:
+      summary: 收藏商户
+      tags: [Favorites]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreate'
+      responses:
+        '201':
+          description: 收藏成功
+
+
+  /api/orders:
+    get:
+      summary: 获取订单列表
+      tags: [Orders]
+      responses:
+        '200':
+          description: 成功
+
+    post:
+      summary: 创建预约订单
+      tags: [Orders]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+      responses:
+        '201':
+          description: 订单创建成功
+
+
+  /api/messages:
+    get:
+      summary: 获取消息列表
+      tags: [Messages]
+      responses:
+        '200':
+          description: 成功
+
+
+  /api/private_messages:
+    get:
+      summary: 获取私信记录
+      tags: [PrivateMessages]
+      responses:
+        '200':
+          description: 成功
+
+    post:
+      summary: 发送私信
+      tags: [PrivateMessages]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivateMessageCreate'
+      responses:
+        '201':
+          description: 发送成功
+
+
+components:
+
+  schemas:
+
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        avatar:
+          type: string
+        bio:
+          type: string
+        follower_count:
+          type: integer
+        following_count:
+          type: integer
+
+    UserCreate:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        bio:
+          type: string
+
+
+    Post:
+      type: object
+      properties:
+        post_id:
+          type: integer
+        user_id:
+          type: integer
+        content:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        like_count:
+          type: integer
+        comment_count:
+          type: integer
+        create_time:
+          type: string
+          format: date-time
+
+
+    PostCreate:
+      type: object
+      properties:
+        content:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+
+
+    Comment:
+      type: object
+      properties:
+        comment_id:
+          type: integer
+        user_id:
+          type: integer
+        post_id:
+          type: integer
+        content:
+          type: string
+        create_time:
+          type: string
+          format: date-time
+
+
+    CommentCreate:
+      type: object
+      properties:
+        content:
+          type: string
+
+
+    Service:
+      type: object
+      properties:
+        service_id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        rating:
+          type: number
+
+
+    ServiceReviewCreate:
+      type: object
+      properties:
+        rating:
+          type: number
+        content:
+          type: string
+
+
+    FavoriteCreate:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        service_id:
+          type: integer
+
+
+    OrderCreate:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        service_id:
+          type: integer
+        appointment_time:
+          type: string
+          format: date-time
+        remark:
+          type: string
+
+
+    FollowCreate:
+      type: object
+      properties:
+        follower_id:
+          type: integer
+        followee_id:
+          type: integer
+
+
+    PrivateMessageCreate:
+      type: object
+      properties:
+        sender_id:
+          type: integer
+        receiver_id:
+          type: integer
+        content:
+          type: string

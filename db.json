@@ -1,0 +1,260 @@
+{
+  "users": [
+    {
+      "userId": 1,
+      "username": "alice",
+      "password": "123456",
+      "email": "alice@example.com",
+      "avatar": "https://randomuser.me/api/portraits/women/1.jpg",
+      "bio": "爱猫人士，家有两只布偶猫",
+      "followerCount": 10,
+      "followingCount": 5,
+      "createTime": "2026-03-20T10:00:00",
+      "id": "-FLUg2l7Hng"
+    },
+    {
+      "userId": 2,
+      "username": "bob",
+      "password": "123456",
+      "email": "bob@example.com",
+      "avatar": "https://randomuser.me/api/portraits/men/1.jpg",
+      "bio": "柯基铲屎官，喜欢遛狗",
+      "followerCount": 8,
+      "followingCount": 12,
+      "createTime": "2026-03-21T15:30:00",
+      "id": "kGnVGTQdhio"
+    },
+    {
+      "userId": 3,
+      "username": "charlie",
+      "password": "123456",
+      "email": "charlie@example.com",
+      "avatar": "https://randomuser.me/api/portraits/men/2.jpg",
+      "bio": "养了一只金毛，喜欢户外活动",
+      "followerCount": 5,
+      "followingCount": 3,
+      "createTime": "2026-03-22T09:00:00",
+      "id": "F3aJQth_CXQ"
+    },
+    {
+      "id": "eMNsnJ1Nzbk"
+    },
+    {
+      "id": "GC5qHp6PioA"
+    },
+    {
+      "id": "GoZzJp6rByc"
+    }
+  ],
+  "posts": [
+    {
+      "postId": 1,
+      "userId": 1,
+      "content": "今天带我家猫咪去洗澡了，超级乖！推荐大家去这家店～",
+      "images": [
+        "https://picsum.photos/200/150?random=1"
+      ],
+      "tags": [
+        "猫咪",
+        "宠物美容"
+      ],
+      "likeCount": 12,
+      "commentCount": 3,
+      "createTime": "2026-03-20T10:00:00",
+      "id": "o1IEdQ-aIMA"
+    },
+    {
+      "postId": 2,
+      "userId": 2,
+      "content": "公园遛狗遇到好多小伙伴，开心！今天天气真好☀️",
+      "images": [
+        "https://picsum.photos/200/150?random=2"
+      ],
+      "tags": [
+        "遛狗",
+        "柯基"
+      ],
+      "likeCount": 8,
+      "commentCount": 2,
+      "createTime": "2026-03-21T15:30:00",
+      "id": "Wgp4lq1eB0c"
+    },
+    {
+      "postId": 3,
+      "userId": 3,
+      "content": "金毛的日常，太可爱了！",
+      "images": [
+        "https://picsum.photos/200/150?random=3"
+      ],
+      "tags": [
+        "金毛",
+        "日常分享"
+      ],
+      "likeCount": 15,
+      "commentCount": 5,
+      "createTime": "2026-03-22T09:00:00",
+      "id": "J7L0gbPJ2gw"
+    },
+    {
+      "id": "rJMAGOusu-g"
+    },
+    {
+      "id": "LU1vYBmT93Y"
+    },
+    {
+      "id": "qDFOn176Ex8"
+    }
+  ],
+  "services": [
+    {
+      "serviceId": 1,
+      "name": "Happy Pet Grooming",
+      "category": "grooming",
+      "address": "上海市浦东新区XX路123号",
+      "phone": "13812345678",
+      "rating": 4.8,
+      "reviewCount": 56,
+      "images": [
+        "https://picsum.photos/200/150?random=10"
+      ],
+      "description": "专业宠物美容服务，10年经验",
+      "id": "pgzvyjCXpvA"
+    },
+    {
+      "serviceId": 2,
+      "name": "Walkie Doggie",
+      "category": "walking",
+      "address": "上海市徐汇区XX路456号",
+      "phone": "13987654321",
+      "rating": 4.9,
+      "reviewCount": 42,
+      "images": [
+        "https://picsum.photos/200/150?random=11"
+      ],
+      "description": "专业遛狗服务，让狗狗快乐运动",
+      "id": "PiLSik4ebik"
+    },
+    {
+      "serviceId": 3,
+      "name": "Cozy Pet Boarding",
+      "category": "boarding",
+      "address": "上海市长宁区XX路789号",
+      "phone": "13712345678",
+      "rating": 4.7,
+      "reviewCount": 38,
+      "images": [
+        "https://picsum.photos/200/150?random=12"
+      ],
+      "description": "温馨寄养环境，24小时监控",
+      "id": "FZ0PaL18hGo"
+    }
+  ],
+  "orders": [
+    {
+      "orderId": 1,
+      "userId": 1,
+      "serviceId": 1,
+      "appointmentTime": "2026-03-25T14:00:00",
+      "remark": "猫咪有点怕生，请温柔一点",
+      "status": "confirmed",
+      "price": 80,
+      "createTime": "2026-03-22T09:00:00",
+      "id": "ISBVVEdTALU"
+    },
+    {
+      "id": "LvA6HVEFsgk"
+    },
+    {
+      "id": "p-tLZ7Qhww0"
+    },
+    {
+      "id": "J5mvgMeL0Bs"
+    }
+  ],
+  "comments": [
+    {
+      "commentId": 1,
+      "userId": 2,
+      "postId": 1,
+      "content": "好可爱的猫咪！",
+      "images": null,
+      "createTime": "2026-03-20T11:00:00",
+      "id": "XSgN9uwZcx4"
+    },
+    {
+      "commentId": 2,
+      "userId": 3,
+      "postId": 1,
+      "content": "这家店我也去过，服务很好",
+      "images": null,
+      "createTime": "2026-03-20T12:00:00",
+      "id": "8XwmLrgNswc"
+    }
+  ],
+  "serviceReviews": [
+    {
+      "reviewId": 1,
+      "userId": 1,
+      "serviceId": 1,
+      "rating": 5,
+      "content": "服务非常好，下次还会来！",
+      "images": null,
+      "createTime": "2026-03-23T10:00:00",
+      "id": "do5McMu_CmI"
+    }
+  ],
+  "favorites": [
+    {
+      "favoriteId": 1,
+      "userId": 1,
+      "serviceId": 2,
+      "createTime": "2026-03-23T09:00:00",
+      "id": "LXnY3QY8DAg"
+    },
+    {
+      "id": "3HfVYGtOwh0"
+    },
+    {
+      "id": "u_NyeV4GgLk"
+    },
+    {
+      "id": "Z-KvACfvTnM"
+    }
+  ],
+  "privateMessages": [
+    {
+      "messageId": 1,
+      "senderId": 1,
+      "receiverId": 2,
+      "content": "你好，可以一起遛狗吗？",
+      "images": null,
+      "isRead": false,
+      "createTime": "2026-03-23T08:00:00",
+      "id": "i5KUQr0BZd8"
+    },
+    {
+      "messageId": 2,
+      "senderId": 2,
+      "receiverId": 1,
+      "content": "好啊，周末有空！",
+      "images": null,
+      "isRead": true,
+      "createTime": "2026-03-23T09:30:00",
+      "id": "ohdVwoD_uwg"
+    }
+  ],
+  "messages": [
+    {
+      "messageId": 1,
+      "receiverId": 1,
+      "senderId": 2,
+      "type": "like",
+      "content": "bob 点赞了你的动态",
+      "relatedId": 1,
+      "isRead": false,
+      "createTime": "2026-03-23T10:00:00",
+      "id": "ZTlCvcqaVM8"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
