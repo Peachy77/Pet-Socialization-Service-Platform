@@ -48,7 +48,7 @@
 
 ## PR链接
 
-- PR https://github.com/Peachy77/Pet-Socialization-Service-Platform/pull/16
+- PR https://github.com/Peachy77/Pet-Socialization-Service-Platform/pull/17
 
 ## 遇到的问题和解决
 
