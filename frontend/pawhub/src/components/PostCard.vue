@@ -37,7 +37,14 @@
 
     <!-- 底部 -->
     <div class="post-footer">
-      <div>♡ {{ post.likes }}</div>
+      <div class="like-btn" :class="{ liked }" @click.stop="toggleLike">
+        <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+          <path
+            d="M12 21s-7.2-4.7-9.6-9C.6 8.7 2.1 5.2 5.6 5c2.1-.1 3.4 1 4.4 2.2C11 6 12.3 4.9 14.4 5c3.5.2 5 3.7 3.2 7-2.4 4.3-9.6 9-9.6 9z"
+          />
+        </svg>
+        <span>{{ likeCount }}</span>
+      </div>
       <div>💬 {{ post.comments }}</div>
     </div>
 
@@ -52,15 +59,30 @@ export default {
     post: Object
   },
 
+  data() {
+    return {
+      liked: false
+    }
+  },
+
   computed: {
     // 最多显示两张图片
     showImages() {
       if(!this.post.images) return []
       return this.post.images.slice(0,2)
+    },
+
+    likeCount() {
+      const baseLikes = Number(this.post.likes || 0)
+      return baseLikes + (this.liked ? 1 : 0)
     }
   },
 
   methods: {
+    toggleLike() {
+      this.liked = !this.liked
+    },
+
     openDetail() {
       this.$router.push({
         name: "postDetail",
@@ -178,5 +200,33 @@ export default {
   font-size:14px;
   border-top:1px solid #eee;
   padding-top:8px;
+}
+
+.like-btn{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  transition:0.2s;
+}
+
+.heart-icon{
+  width:17px;
+  height:17px;
+}
+
+.heart-icon path{
+  fill:transparent;
+  stroke:#666;
+  stroke-width:1.8;
+  transition:0.2s;
+}
+
+.like-btn.liked{
+  color:#ef4444;
+}
+
+.like-btn.liked .heart-icon path{
+  fill:#ef4444;
+  stroke:#ef4444;
 }
 </style>

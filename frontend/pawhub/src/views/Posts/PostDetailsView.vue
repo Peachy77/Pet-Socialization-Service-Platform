@@ -53,9 +53,13 @@
 				</div>
 
 				<div class="action-row">
-					<div class="stat-item">
-						<span class="icon">♡</span>
-						<span>{{ post.likes }}</span>
+					<div class="stat-item like-btn" :class="{ liked }" @click="toggleLike">
+						<svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+							<path
+								d="M12 21s-7.2-4.7-9.6-9C.6 8.7 2.1 5.2 5.6 5c2.1-.1 3.4 1 4.4 2.2C11 6 12.3 4.9 14.4 5c3.5.2 5 3.7 3.2 7-2.4 4.3-9.6 9-9.6 9z"
+							/>
+						</svg>
+						<span>{{ displayLikes }}</span>
 					</div>
 					<div class="stat-item">
 						<span class="icon">💬</span>
@@ -90,6 +94,7 @@ export default {
 
 	data() {
 		return {
+			liked: false,
 			activeImageIndex: 0,
 			fallbackPost: {
 				id: 1,
@@ -151,9 +156,17 @@ export default {
 			}
 		},
 
+		displayLikes() {
+			return (this.post.likes || 0) + (this.liked ? 1 : 0)
+		},
+
 	},
 
 	methods: {
+		toggleLike() {
+			this.liked = !this.liked
+		},
+
 		handleLikeComment(commentId) {
 			this.commentList = this.commentList.map(comment => {
 				if (comment.id !== commentId) {
@@ -454,6 +467,32 @@ export default {
 	align-items: center;
 	gap: 8px;
 	font-size: 16px;
+}
+
+.like-btn {
+	transition: color 0.2s ease;
+}
+
+.heart-icon {
+	width: 20px;
+	height: 20px;
+	flex: none;
+}
+
+.heart-icon path {
+	fill: transparent;
+	stroke: #4f5562;
+	stroke-width: 1.8;
+	transition: 0.2s;
+}
+
+.like-btn.liked {
+	color: #ef4444;
+}
+
+.like-btn.liked .heart-icon path {
+	fill: #ef4444;
+	stroke: #ef4444;
 }
 
 .icon {

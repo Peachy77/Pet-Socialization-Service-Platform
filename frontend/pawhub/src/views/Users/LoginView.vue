@@ -80,17 +80,22 @@ export default {
 
         const res = await login(this.form);
 
-        // 假设返回 token
-        const token = res.data.token;
+        // client 的响应拦截器已返回 response.data，这里兼容两种结构
+        const token = res?.token || res?.data?.token;
+
+        if (!token) {
+          throw new Error("登录响应中未找到 token");
+        }
 
         localStorage.setItem("token", token);
 
         this.$message.success("登录成功");
 
-        this.$router.push("/");
+        this.$router.push("/home");
 
       } catch (error) {
-        this.$message.error("登录失败");
+        const msg = error?.response?.data?.message || "登录失败，请检查账号密码";
+        this.$message.error(msg);
       } finally {
         this.loading = false;
       }

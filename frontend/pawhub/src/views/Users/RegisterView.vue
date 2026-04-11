@@ -49,6 +49,8 @@
 </template>
 
 <script>
+import { register } from "@/api/users";
+
 export default {
 	name: "RegisterView",
 
@@ -78,13 +80,16 @@ export default {
 			try {
 				this.loading = true;
 
-				// 这里可替换为真实注册接口调用
-				await new Promise((resolve) => setTimeout(resolve, 500));
+				await register({
+					account: this.form.account,
+					password: this.form.password
+				});
 
 				this.$message.success("注册成功，请登录");
-				this.$router.push("/login");
+				this.$router.push("/");
 			} catch (error) {
-				this.$message.error("注册失败");
+				const msg = error?.response?.data?.message || "注册失败";
+				this.$message.error(msg);
 			} finally {
 				this.loading = false;
 			}

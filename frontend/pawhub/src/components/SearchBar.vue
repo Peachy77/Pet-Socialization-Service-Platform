@@ -50,7 +50,7 @@ export default {
 .search-bar{
   display:flex;
   align-items:center;
-  background:#e4eef4;
+  background:#e9f0f4;
   border-radius:25px;
   padding:10px 15px;     
 }
