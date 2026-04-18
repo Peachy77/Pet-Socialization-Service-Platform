@@ -5,8 +5,10 @@ import com.jtyu.backend.mapper.PostMapper;
 import com.jtyu.backend.service.LikeService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Service
 public class LikeServiceImpl implements LikeService {
     @Autowired
     private LikeMapper likeMapper;
@@ -16,24 +18,39 @@ public class LikeServiceImpl implements LikeService {
 
     @Override
     @Transactional
-    public int likePost(Integer postId) {
-        // 注意：这里缺少 userId，你的 Controller 没有传 userId
-        // 暂时返回 1 模拟成功，后续需要从 token 获取 userId
-        // TODO: 从当前登录用户获取 userId
-        Integer userId = 1; // 临时模拟
-
-        // 检查是否已点赞
-        if (likeMapper.findByUserAndPost(userId, postId) != null) {
-            return 0;
+    public boolean like(Integer userId, Integer postId) {
+        if (likeMapper.exists(userId, postId) > 0) {
+            return false;
         }
-
-        com.jtyu.backend.model.Like like = new com.jtyu.backend.model.Like();
-        like.setUserId(userId);
-        like.setPostId(postId);
-        int result = likeMapper.insert(like);
+        int result = likeMapper.insert(userId, postId);
         if (result > 0) {
-            postMapper.updateLikeCount(postId, 1);
+            postMapper.incrementLikeCount(postId);
+            return true;
         }
-        return result;
+        return false;
+    }
+
+    @Override
+    @Transactional
+    public boolean unlike(Integer userId, Integer postId) {
+        if (likeMapper.exists(userId, postId) == 0) {
+            return false;
+        }
+        int result = likeMapper.delete(userId, postId);
+        if (result > 0) {
+            postMapper.decrementLikeCount(postId);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isLiked(Integer userId, Integer postId) {
+        return likeMapper.exists(userId, postId) > 0;
+    }
+
+    @Override
+    public int getLikeCount(Integer postId) {
+        return likeMapper.countByPostId(postId);
     }
 }
