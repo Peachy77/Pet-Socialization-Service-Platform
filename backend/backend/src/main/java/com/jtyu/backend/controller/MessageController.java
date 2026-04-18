@@ -23,12 +23,12 @@ public class MessageController {
         return Result.success(result);
     }
 
-    // GET /messages/unread-count - 获取未读通知数量
-    @GetMapping("/messages/unread-count")
-    public Result getUnreadNotificationCount(@RequestAttribute Integer currentUserId) {
-        Long count = messageService.getUnreadCount(currentUserId);
-        return Result.success(count);
-    }
+//    // GET /messages/unread-count - 获取未读通知数量
+//    @GetMapping("/messages/unread-count")
+//    public Result getUnreadNotificationCount(@RequestAttribute Integer currentUserId) {
+//        Long count = messageService.getUnreadCount(currentUserId);
+//        return Result.success(count);
+//    }
 
     // PATCH /messages/{messageId}/read - 标记通知为已读
     @PatchMapping("/messages/{messageId}/read")
