@@ -12,5 +12,7 @@ public class Comment {
     private String images;      // 评论图片URL数组 JSON
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private Integer parentCommentId;  // 回复的评论ID，0表示顶级评论
+
 
 }

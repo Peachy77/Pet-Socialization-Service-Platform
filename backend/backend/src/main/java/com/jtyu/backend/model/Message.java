@@ -13,4 +13,5 @@ public class Message {
     private Integer relatedId;
     private Boolean isRead;
     private LocalDateTime createTime;
+
 }

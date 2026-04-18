@@ -9,7 +9,7 @@ public class User {
     private String username;
     private String password;
     private String email;
-    private String avatar;
+    private String avatar;//用户头像图片的 URL
     private String bio;
     private Integer followerCount;
     private Integer followingCount;

@@ -18,35 +18,50 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public int followUser(Follow follow) {
-        // 检查是否已经关注
-        Follow exist = followMapper.findByFollowerAndFollowee(
-                follow.getFollowerId(), follow.getFolloweeId());
-        if (exist != null) {
-            return 0;
+    public boolean follow(Integer followerId, Integer followeeId) {
+        // 不能关注自己
+        if (followerId.equals(followeeId)) {
+            return false;
         }
-        int result = followMapper.insert(follow);
+
+        // 检查是否已关注
+        if (followMapper.exists(followerId, followeeId) > 0) {
+            return false;
+        }
+
+        // 插入关注关系
+        int result = followMapper.insert(followerId, followeeId);
         if (result > 0) {
-            // 更新关注数和粉丝数
-            userMapper.updateFollowingCount(follow.getFollowerId(), 1);
-            userMapper.updateFollowerCount(follow.getFolloweeId(), 1);
+            // 更新关注数
+            userMapper.incrementFollowingCount(followerId);
+            // 更新粉丝数
+            userMapper.incrementFollowerCount(followeeId);
+            return true;
         }
-        return result;
+        return false;
     }
 
     @Override
     @Transactional
-    public boolean unfollowUser(Integer id) {
-        Follow follow = followMapper.findById(id);
-        if (follow == null) {
+    public boolean unfollow(Integer followerId, Integer followeeId) {
+        // 检查是否已关注
+        if (followMapper.exists(followerId, followeeId) == 0) {
             return false;
         }
-        int result = followMapper.deleteById(id);
+
+        int result = followMapper.delete(followerId, followeeId);
         if (result > 0) {
-            userMapper.updateFollowingCount(follow.getFollowerId(), -1);
-            userMapper.updateFollowerCount(follow.getFolloweeId(), -1);
+            // 更新关注数
+            userMapper.decrementFollowingCount(followerId);
+            // 更新粉丝数
+            userMapper.decrementFollowerCount(followeeId);
             return true;
         }
         return false;
+    }
+
+    @Override
+    public boolean isFollowing(Integer followerId, Integer followeeId) {
+        return followMapper.exists(followerId, followeeId) > 0;
     }
 }

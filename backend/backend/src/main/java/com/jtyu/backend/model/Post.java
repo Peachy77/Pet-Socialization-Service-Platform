@@ -14,4 +14,5 @@ public class Post {
     private Integer commentCount;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
 }
