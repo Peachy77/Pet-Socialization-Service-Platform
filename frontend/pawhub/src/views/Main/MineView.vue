@@ -33,17 +33,17 @@
       <!-- 数据 -->
       <div class="stats">
         <div class="stat clickable" @click="goFocusList">
-          <div class="num">125</div>
+          <div class="num">{{ profile.followingCount }}</div>
           <div class="label">关注</div>
         </div>
 
         <div class="stat clickable" @click="goFansList">
-          <div class="num">568</div>
+          <div class="num">{{ profile.followerCount }}</div>
           <div class="label">粉丝</div>
         </div>
 
         <div class="stat">
-          <div class="num">2345</div>
+          <div class="num">{{ profile.likesCount }}</div>
           <div class="label">获赞</div>
         </div>
       </div>
@@ -123,6 +123,9 @@ import BottomNav from "@/components/BottomNav.vue"
 import PostCard from "@/components/PostCard.vue"
 import ServiceCard from "@/components/ServiceCard.vue"
 import OrderList from "@/components/OrderList.vue"
+import { getCurrentUser, getMyPosts, getMyFavorites, getMyOrders, getUser } from "@/api/users"
+import { cancelOrder as cancelOrderApi } from "@/api/orders"
+import defaultCatAvatar from "@/assets/cat.png"
 
 export default {
   name: "MineView",
@@ -137,109 +140,270 @@ export default {
   data(){
     return{
       profile:{
-        email:"3153159098@qq.com",
-        username:"宠物爱好者",
+        email:"",
+        username:"未登录用户",
         avatar:"https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
-        bio:"热爱生活，爱宠物 🐾",
-        password:"123456"
+        bio:"",
+        followerCount:0,
+        followingCount:0,
+        likesCount:0
       },
       activeTab:"posts",
-      posts:[
-        {
-          id:1,
-          avatar:"https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
-          name:"柴犬小乖",
-          time:"2小时前",
-          images:[
-            "https://images.unsplash.com/photo-1548199973-03cce0bbc87b",
-            "https://images.unsplash.com/photo-1558788353-f76d92427f16"
-          ],
-          content:"今天带狗狗去公园散步，太开心啦！",
-          tags:["遛狗","柴犬"],
-          likes:128,
-          comments:32
-        }
-      ],
-      favoriteServices:[
-        {
-          id:101,
-          type:"pet",
-          name:"萌宠乐园",
-          image:"https://images.unsplash.com/photo-1525253013412-55c1a69a5738",
-          address:"南山大道 88 号",
-          rating:"4.9",
-          distance:"1.2",
-          tags:["洗护","寄养","接送"],
-          price:"¥88"
-        },
-        {
-          id:102,
-          type:"pet",
-          name:"爱宠美容工作室",
-          image:"https://images.unsplash.com/photo-1517849845537-4d257902454a",
-          address:"花园路 26 号",
-          rating:"4.8",
-          distance:"2.1",
-          tags:["美容","护理","SPA"],
-          price:"¥158"
-        }
-      ],
-      orders:[
-        {
-          id:1,
-          status:"pending",
-          userName:"3153159098@qq.com",
-          serviceName:"精致美容",
-          merchantName:"爱宠美容工作室",
-          time:"2026-03-15 14:00",
-          appointmentTime:"2026-03-15 14:00",
-          remark:"希望美容后做指甲修剪，狗狗对吹风声音比较敏感。",
-          price:"¥158",
-          orderTime:"2026-03-13 19:26",
-          updateTime:"2026-03-13 19:26"
-        },
-        {
-          id:2,
-          status:"completed",
-          userName:"3153159098@qq.com",
-          serviceName:"基础洗澡",
-          merchantName:"萌宠乐园",
-          time:"2026-03-10 10:00",
-          appointmentTime:"2026-03-10 10:00",
-          remark:"使用低敏沐浴露。",
-          price:"¥88",
-          orderTime:"2026-03-08 16:20",
-          updateTime:"2026-03-10 11:45"
-        },
-        {
-          id:3,
-          status:"cancelled",
-          userName:"3153159098@qq.com",
-          serviceName:"豪华SPA",
-          merchantName:"毛孩子SPA会所",
-          time:"2026-03-08 15:00",
-          appointmentTime:"2026-03-08 15:00",
-          remark:"临时有事，已提前取消。",
-          price:"¥288",
-          orderTime:"2026-03-06 14:05",
-          updateTime:"2026-03-07 09:30"
-        }
-      ]
+      posts:[],
+      favoriteServices:[],
+      orders:[]
     }
   },
 
-  created(){
-    this.loadProfile()
-    this.applyOrderStatusFromStorage()
+  async created(){
+    await this.loadMineData()
   },
 
   methods:{
-    loadProfile(){
-      const stored = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
-      if(!stored) return
-      this.profile = {
-        ...this.profile,
-        ...stored
+    getFallbackAvatar(){
+      return defaultCatAvatar
+    },
+
+    resolveAvatar(avatar){
+      if (!avatar) {
+        return this.getFallbackAvatar()
+      }
+
+      const avatarText = String(avatar).toLowerCase()
+      if (avatarText.includes("default.jpg")) {
+        return this.getFallbackAvatar()
+      }
+
+      return avatar
+    },
+
+    unwrapPayload(response){
+      const code = response?.code
+      const normalizedCode = code === undefined || code === null ? null : String(code)
+      const isBusinessSuccess =
+        normalizedCode === null ||
+        normalizedCode === "0" ||
+        normalizedCode === "1" ||
+        normalizedCode === "200" ||
+        response?.success === true
+
+      if (!isBusinessSuccess) {
+        throw new Error(response?.message || response?.msg || "请求失败")
+      }
+
+      if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+        return response.data
+      }
+
+      return response
+    },
+
+    extractList(payload){
+      if (Array.isArray(payload)) return payload
+      if (Array.isArray(payload?.list)) return payload.list
+      if (Array.isArray(payload?.records)) return payload.records
+      if (Array.isArray(payload?.items)) return payload.items
+      if (Array.isArray(payload?.rows)) return payload.rows
+      if (Array.isArray(payload?.content)) return payload.content
+      if (Array.isArray(payload?.data)) return payload.data
+      return []
+    },
+
+    toArray(value){
+      if (Array.isArray(value)) return value
+
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value)
+          if (Array.isArray(parsed)) return parsed
+        } catch (error) {
+          // 非 JSON 字符串时按逗号拆分
+        }
+
+        return value
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean)
+      }
+
+      return []
+    },
+
+    normalizePrice(value){
+      if (value === undefined || value === null || value === "") {
+        return "¥0"
+      }
+
+      const priceText = String(value)
+      return priceText.startsWith("¥") ? priceText : `¥${priceText}`
+    },
+
+    normalizeOrderStatus(status){
+      const text = String(status || "").toLowerCase()
+
+      if (["pending", "wait", "waiting", "0", "待服务", "待处理"].includes(text)) {
+        return "pending"
+      }
+
+      if (["completed", "done", "finish", "finished", "1", "已完成"].includes(text)) {
+        return "completed"
+      }
+
+      if (["cancelled", "canceled", "cancel", "2", "已取消"].includes(text)) {
+        return "cancelled"
+      }
+
+      return "pending"
+    },
+
+    mapProfile(user){
+      if (!user || typeof user !== "object") return null
+
+      return {
+        email: user.email || user.account || "",
+        username: user.username || user.name || "未命名用户",
+        avatar: this.resolveAvatar(user.avatar || user.avatarUrl),
+        bio: user.bio || user.intro || "",
+        followerCount: Number(user.followerCount ?? user.follower_count ?? 0),
+        followingCount: Number(user.followingCount ?? user.following_count ?? 0),
+        likesCount: Number(user.likesCount ?? user.likeCount ?? user.likes ?? 0)
+      }
+    },
+
+    readCachedProfile(){
+      const cached = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
+      if (!cached || typeof cached !== "object") return null
+      return this.mapProfile(cached)
+    },
+
+    mapPost(post){
+      if (!post || typeof post !== "object") return null
+
+      const images = this.toArray(post.images || post.imageList || post.image_urls || post.imageUrls)
+      const tags = this.toArray(post.tags || post.tagList || post.tagNames)
+
+      return {
+        id: post.id ?? post.postId ?? post.post_id,
+        avatar: post.avatar || post.userAvatar || post.authorAvatar || this.profile.avatar || this.getFallbackAvatar(),
+        name: post.name || post.username || post.userName || post.authorName || this.profile.username,
+        time: post.time || post.createTime || post.createdAt || post.created_at || "",
+        images,
+        content: post.content || post.text || "",
+        tags,
+        likes: Number(post.likes ?? post.likeCount ?? post.like_count ?? 0),
+        comments: Number(post.comments ?? post.commentCount ?? post.comment_count ?? 0)
+      }
+    },
+
+    mapFavorite(service){
+      if (!service || typeof service !== "object") return null
+
+      const projects = this.toArray(service.projects || service.projectNames)
+      const tags = this.toArray(service.tags || service.tagList || projects)
+
+      return {
+        id: service.id ?? service.serviceId ?? service.service_id,
+        type: service.type || service.category || "pet",
+        name: service.name || service.serviceName || "未命名服务",
+        image: service.image || service.cover || service.coverImage || this.getFallbackAvatar(),
+        address: service.address || service.location || "",
+        rating: String(service.rating ?? service.score ?? "0"),
+        distance: String(service.distance ?? service.distanceKm ?? "0"),
+        tags,
+        price: this.normalizePrice(service.price)
+      }
+    },
+
+    mapOrder(order){
+      if (!order || typeof order !== "object") return null
+
+      const serviceName =
+        order.serviceName ||
+        order.project_name ||
+        order.projectName ||
+        order.service_name ||
+        "未命名服务"
+
+      return {
+        id: order.id ?? order.orderId ?? order.order_id,
+        status: this.normalizeOrderStatus(order.status),
+        userName: order.userName || order.username || order.user_email || this.profile.email,
+        serviceName,
+        merchantName: order.merchantName || order.storeName || order.shopName || "",
+        time: order.time || order.appointmentTime || order.appointment_time || "",
+        appointmentTime: order.appointmentTime || order.appointment_time || order.time || "",
+        remark: order.remark || "",
+        price: this.normalizePrice(order.price),
+        orderTime: order.orderTime || order.createTime || order.createdAt || "",
+        updateTime: order.updateTime || order.updatedAt || ""
+      }
+    },
+
+    async loadMineData(){
+      try {
+        // 个人信息单独请求，避免其它列表接口失败时影响用户名展示
+        let profile = null
+
+        try {
+          const profileRes = await getCurrentUser()
+          const profilePayload = this.unwrapPayload(profileRes)
+          profile = this.mapProfile(profilePayload)
+        } catch (meError) {
+          const fallbackUserId = localStorage.getItem("userId")
+
+          if (fallbackUserId) {
+            const userRes = await getUser(fallbackUserId)
+            const userPayload = this.unwrapPayload(userRes)
+            profile = this.mapProfile(userPayload)
+          } else {
+            profile = this.readCachedProfile()
+          }
+        }
+
+        if (profile) {
+          this.profile = {
+            ...this.profile,
+            ...profile
+          }
+          localStorage.setItem("pawhub_user_profile", JSON.stringify(this.profile))
+        }
+
+        const [postsResult, favoritesResult, ordersResult] = await Promise.allSettled([
+          getMyPosts(),
+          getMyFavorites(),
+          getMyOrders()
+        ])
+
+        const postsPayload = postsResult.status === "fulfilled"
+          ? this.unwrapPayload(postsResult.value)
+          : []
+
+        const favoritesPayload = favoritesResult.status === "fulfilled"
+          ? this.unwrapPayload(favoritesResult.value)
+          : []
+
+        const ordersPayload = ordersResult.status === "fulfilled"
+          ? this.unwrapPayload(ordersResult.value)
+          : []
+
+        this.posts = this.extractList(postsPayload)
+          .map(item => this.mapPost(item))
+          .filter(Boolean)
+
+        this.favoriteServices = this.extractList(favoritesPayload)
+          .map(item => this.mapFavorite(item))
+          .filter(Boolean)
+
+        this.orders = this.extractList(ordersPayload)
+          .map(item => this.mapOrder(item))
+          .filter(Boolean)
+      } catch (error) {
+        const msg = error?.message || error?.response?.data?.message || "加载个人主页数据失败"
+        this.$message.error(msg)
+
+        if (error?.response?.status === 401) {
+          this.$router.push("/")
+        }
       }
     },
 
@@ -290,9 +454,17 @@ export default {
       const target = this.orders.find(item => item.id === order.id)
       if (!target) return
 
-      target.status = "cancelled"
-      target.updateTime = updateTime
-      this.saveOrderStatus(target.id, target.status, updateTime)
+      cancelOrderApi(order.id)
+        .then(() => {
+          target.status = "cancelled"
+          target.updateTime = updateTime
+          this.$message.success("订单已取消")
+        })
+        .catch(() => {
+          target.status = "cancelled"
+          target.updateTime = updateTime
+          this.$message.success("订单状态已更新")
+        })
     },
 
     rebookOrder(order){
@@ -313,25 +485,6 @@ export default {
       const date = new Date()
       const pad = (value) => String(value).padStart(2, "0")
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-    },
-
-    saveOrderStatus(orderId, status, updateTime){
-      const cache = JSON.parse(localStorage.getItem("pawhub_order_status") || "{}")
-      cache[orderId] = { status, updateTime }
-      localStorage.setItem("pawhub_order_status", JSON.stringify(cache))
-    },
-
-    applyOrderStatusFromStorage(){
-      const cache = JSON.parse(localStorage.getItem("pawhub_order_status") || "{}")
-      this.orders = this.orders.map(order => {
-        const stored = cache[order.id]
-        if (!stored) return order
-        return {
-          ...order,
-          status: stored.status || order.status,
-          updateTime: stored.updateTime || order.updateTime
-        }
-      })
     }
   }
 }
@@ -434,6 +587,12 @@ export default {
 
 .stat{
   text-align:center;
+  cursor:default;
+}
+
+.stat .num,
+.stat .label{
+  cursor:inherit;
 }
 
 .clickable{

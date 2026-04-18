@@ -38,6 +38,7 @@ public class UserController {
 
         // 生成 token
         Integer userId = (Integer) user.get("userId");
+        System.out.println("login生成token userId: " + userId);
         String token = JwtUtil.generateToken(userId, email);
 
         // 构建返回结果（包含 token）

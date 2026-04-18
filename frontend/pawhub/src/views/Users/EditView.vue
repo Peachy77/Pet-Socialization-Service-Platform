@@ -76,6 +76,8 @@
 </template>
 
 <script>
+import { updateCurrentUser } from "@/api/users"
+
 export default {
 	name: "EditView",
 
@@ -180,15 +182,28 @@ export default {
 
 			const profile = {
 				username: this.form.username,
-				email: this.form.email,
 				avatar: this.form.avatar,
-				bio: this.form.bio,
-				password: this.form.password
+				bio: this.form.bio
 			}
 
-			localStorage.setItem("pawhub_user_profile", JSON.stringify(profile))
-			this.$message.success("资料已保存")
-			this.$router.push({ name: "mine" })
+			updateCurrentUser(profile)
+				.then(() => {
+					const cachedProfile = {
+						...JSON.parse(localStorage.getItem("pawhub_user_profile") || "{}"),
+						username: this.form.username,
+						email: this.form.email,
+						avatar: this.form.avatar,
+						bio: this.form.bio
+					}
+
+					localStorage.setItem("pawhub_user_profile", JSON.stringify(cachedProfile))
+					this.$message.success("资料已保存")
+					this.$router.push({ name: "mine" })
+				})
+				.catch(error => {
+					const msg = error?.response?.data?.message || error?.message || "资料保存失败"
+					this.$message.error(msg)
+				})
 		},
 
 		goBack() {

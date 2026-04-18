@@ -13,6 +13,7 @@
         :key="user.id"
         :user="user"
         :following="true"
+        @click="openUserInfo"
       />
     </div>
   </div>
@@ -56,6 +57,15 @@ export default {
   methods: {
     goBack() {
       this.$router.back()
+    },
+
+    openUserInfo(user) {
+      this.$router.push({
+        name: "userInformation",
+        query: {
+          user: encodeURIComponent(JSON.stringify(user))
+        }
+      })
     }
   }
 }

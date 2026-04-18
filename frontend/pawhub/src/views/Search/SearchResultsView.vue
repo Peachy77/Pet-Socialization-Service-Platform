@@ -201,7 +201,12 @@ export default {
     },
 
     handleUserClick(user){
-      console.log("点击用户卡片", user)
+      this.$router.push({
+        name: "userInformation",
+        query: {
+          user: encodeURIComponent(JSON.stringify(user))
+        }
+      })
     },
 
     handleFollow(user){

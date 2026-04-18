@@ -100,6 +100,11 @@ const routes = [
   component:()=>import('@/views/Users/EditView.vue')
   },
   {
+  path:'/users/information',
+  name:'userInformation',
+  component:()=>import('@/views/Users/UserInformationView.vue')
+  },
+  {
   path:'/users/setting',
   name:'setting',
   component:()=>import('@/views/Users/SettingView.vue')

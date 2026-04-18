@@ -24,6 +24,8 @@ public class JwtUtil {
         claims.put("userId", userId);
         claims.put("email", email);
 
+        System.out.println("生成token userId: " + userId);
+
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(String.valueOf(userId))
@@ -42,7 +44,14 @@ public class JwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        return claims.get("userId", Integer.class);
+
+        Object userIdObj = claims.get("userId");
+
+        if (userIdObj == null) {
+            throw new RuntimeException("token中没有userId");
+        }
+
+        return ((Number) userIdObj).intValue();
     }
 
     /**

@@ -8,14 +8,22 @@
 
 		<div class="content-shell">
 			<div class="author-card">
-				<div class="author-left">
+				<div
+					class="author-left"
+					role="button"
+					tabindex="0"
+					@click="openAuthorProfile"
+					@keydown.enter.prevent="openAuthorProfile"
+				>
 					<img :src="post.avatar" class="avatar" />
 					<div class="author-meta">
 						<div class="author-name">{{ post.name }}</div>
 						<div class="author-time">{{ post.time }}</div>
 					</div>
 				</div>
-				<button class="follow-btn">关注</button>
+				<button class="follow-btn" :class="{ active: followed }" @click="toggleFollow">
+					{{ followed ? "已关注" : "关注" }}
+				</button>
 			</div>
 
 			<div
@@ -63,21 +71,40 @@
 					</div>
 					<div class="stat-item">
 						<span class="icon">💬</span>
-						<span>{{ post.comments }}</span>
+						<span>{{ displayCommentCount }}</span>
 					</div>
 				</div>
 			</div>
 
 			<PostCommentList
 				:comments="commentList"
+				:current-user-avatar="currentUser.avatar"
 				@like-comment="handleLikeComment"
 				@reply-comment="handleReplyComment"
 			/>
 		</div>
 
 		<div class="comment-bar">
-			<div class="input-box">写评论...</div>
-			<button class="send-btn">➤</button>
+			<input
+				ref="commentImageInput"
+				type="file"
+				accept="image/*"
+				class="image-input"
+				@change="handleCommentImageChange"
+			/>
+			<button class="attach-btn" @click="triggerCommentImage">＋</button>
+			<textarea
+				v-model.trim="commentDraft"
+				class="input-box"
+				placeholder="写评论..."
+				rows="1"
+			/>
+			<button class="send-btn" @click="submitComment">➤</button>
+		</div>
+
+		<div v-if="commentImage" class="comment-image-preview">
+			<img :src="commentImage" alt="待发布图片" />
+			<button class="remove-image-btn" @click="clearCommentImage">×</button>
 		</div>
 	</div>
 </template>
@@ -95,7 +122,15 @@ export default {
 	data() {
 		return {
 			liked: false,
+			followed: false,
 			activeImageIndex: 0,
+			commentDraft: "",
+			commentImage: "",
+			extraCommentCount: 0,
+			currentUser: {
+				username: "宠物爱好者",
+				avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
+			},
 			fallbackPost: {
 				id: 1,
 				name: "柴犬小乖",
@@ -120,6 +155,7 @@ export default {
 					content: "好可爱！我家猫咪也想去试试。",
 					likes: 12,
 					replyCount: 2,
+					replies: [],
 					lastReply: "",
 					liked: false
 				},
@@ -131,11 +167,16 @@ export default {
 					content: "这家店看起来很不错，收藏了。",
 					likes: 6,
 					replyCount: 1,
+					replies: [],
 					lastReply: "",
 					liked: false
 				}
 			]
 		}
+	},
+
+	created() {
+		this.loadCurrentUser()
 	},
 
 	computed: {
@@ -160,11 +201,86 @@ export default {
 			return (this.post.likes || 0) + (this.liked ? 1 : 0)
 		},
 
+		displayCommentCount() {
+			return (this.post.comments || 0) + this.extraCommentCount
+		},
+
 	},
 
 	methods: {
 		toggleLike() {
 			this.liked = !this.liked
+		},
+
+		toggleFollow() {
+			this.followed = !this.followed
+		},
+
+		loadCurrentUser() {
+			const stored = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
+
+			if (!stored) {
+				return
+			}
+
+			this.currentUser = {
+				username: stored.username || stored.name || this.currentUser.username,
+				avatar: stored.avatar || this.currentUser.avatar
+			}
+		},
+
+		submitComment() {
+			const text = String(this.commentDraft || "").trim()
+
+			if (!text && !this.commentImage) {
+				return
+			}
+
+			this.commentList = [{
+				id: Date.now(),
+				name: this.currentUser.username,
+				time: this.formatNow(),
+				avatar: this.currentUser.avatar,
+				content: text,
+				image: this.commentImage,
+				likes: 0,
+				replyCount: 0,
+				replies: [],
+				lastReply: "",
+				liked: false,
+				isMine: true
+			}, ...this.commentList]
+
+			this.extraCommentCount += 1
+			this.commentDraft = ""
+			this.clearCommentImage()
+		},
+
+		triggerCommentImage() {
+			if (this.$refs.commentImageInput) {
+				this.$refs.commentImageInput.click()
+			}
+		},
+
+		handleCommentImageChange(event) {
+			const file = event.target.files && event.target.files[0]
+
+			if (!file) {
+				return
+			}
+
+			const reader = new FileReader()
+			reader.onload = () => {
+				this.commentImage = reader.result
+			}
+			reader.readAsDataURL(file)
+		},
+
+		clearCommentImage() {
+			this.commentImage = ""
+			if (this.$refs.commentImageInput) {
+				this.$refs.commentImageInput.value = ""
+			}
 		},
 
 		handleLikeComment(commentId) {
@@ -192,12 +308,31 @@ export default {
 					return comment
 				}
 
+				const nextReplies = Array.isArray(comment.replies)
+					? [...comment.replies]
+					: []
+
+				nextReplies.push({
+					text: payload.text,
+					image: payload.image || "",
+					targetName: payload.targetName || comment.name,
+					avatar: this.currentUser.avatar,
+					time: this.formatNow()
+				})
+
 				return {
 					...comment,
 					replyCount: (comment.replyCount || 0) + 1,
-					lastReply: payload.text
+					replies: nextReplies,
+					lastReply: payload.text || (payload.image ? "[图片]" : "")
 				}
 			})
+		},
+
+		formatNow() {
+			const now = new Date()
+			const pad = value => String(value).padStart(2, "0")
+			return `${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
 		},
 
 		handleGalleryScroll(event) {
@@ -209,6 +344,21 @@ export default {
 			}
 
 			this.activeImageIndex = Math.round(container.scrollLeft / width)
+		},
+
+		openAuthorProfile() {
+			const user = {
+				id: this.post.id,
+				name: this.post.name,
+				avatar: this.post.avatar
+			}
+
+			this.$router.push({
+				name: "userInformation",
+				query: {
+					user: encodeURIComponent(JSON.stringify(user))
+				}
+			})
 		},
 
 		goBack() {
@@ -321,6 +471,7 @@ export default {
 	align-items: center;
 	gap: 12px;
 	min-width: 0;
+	cursor: pointer;
 }
 
 .author-meta {
@@ -358,6 +509,11 @@ export default {
 	font-weight: 500;
 	cursor: pointer;
 	flex: none;
+}
+
+.follow-btn.active {
+	background: #ece7ee;
+	color: #5f5468;
 }
 
 .gallery {
@@ -514,26 +670,81 @@ export default {
 	backdrop-filter: blur(14px);
 }
 
+.image-input {
+	display: none;
+}
+
+.attach-btn {
+	width: 46px;
+	height: 46px;
+	border: none;
+	border-radius: 50%;
+	background: #fff;
+	color: #8d79d2;
+	font-size: 28px;
+	line-height: 1;
+	box-shadow: 0 8px 20px rgba(43, 35, 55, 0.1);
+	cursor: pointer;
+}
+
 .input-box {
 	flex: 1;
 	height: 56px;
-	line-height: 56px;
-	padding: 0 20px;
+	padding: 16px 20px;
 	border-radius: 28px;
 	background: #fff;
 	color: #b3acb8;
 	font-size: 16px;
 	box-shadow: 0 8px 24px rgba(43, 35, 55, 0.06);
+	border: none;
+	outline: none;
+	resize: none;
+	line-height: 1.4;
+	font-family: inherit;
 }
 
 .send-btn {
 	width: 52px;
 	height: 52px;
 	border-radius: 50%;
-	background: #c8b8ee;
+	background: #885dce;
 	color: #fff;
 	font-size: 22px;
 	box-shadow: 0 10px 24px rgba(200, 184, 238, 0.45);
+}
+
+.comment-image-preview {
+	position: fixed;
+	right: 18px;
+	bottom: calc(74px + env(safe-area-inset-bottom));
+	z-index: 21;
+	background: #fff;
+	border-radius: 12px;
+	padding: 8px;
+	box-shadow: 0 8px 24px rgba(43, 35, 55, 0.14);
+}
+
+.comment-image-preview img {
+	width: 88px;
+	height: 88px;
+	object-fit: cover;
+	border-radius: 8px;
+	display: block;
+}
+
+.remove-image-btn {
+	position: absolute;
+	right: -8px;
+	top: -8px;
+	width: 22px;
+	height: 22px;
+	border: none;
+	border-radius: 50%;
+	background: #8d79d2;
+	color: #fff;
+	font-size: 14px;
+	line-height: 1;
+	cursor: pointer;
 }
 
 @media (max-width: 640px) {

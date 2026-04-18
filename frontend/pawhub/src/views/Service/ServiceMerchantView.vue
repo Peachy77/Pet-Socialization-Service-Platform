@@ -73,9 +73,33 @@
 
       <PostCommentList
         :comments="commentList"
+        :current-user-avatar="currentUser.avatar"
         @like-comment="handleLikeComment"
         @reply-comment="handleReplyComment"
       />
+    </div>
+
+    <div class="comment-bar">
+      <input
+        ref="commentImageInput"
+        type="file"
+        accept="image/*"
+        class="image-input"
+        @change="handleCommentImageChange"
+      />
+      <button class="attach-btn" @click="triggerCommentImage">＋</button>
+      <textarea
+        v-model.trim="commentDraft"
+        class="input-box"
+        placeholder="写评论..."
+        rows="1"
+      />
+      <button class="send-btn" @click="submitComment">➤</button>
+    </div>
+
+    <div v-if="commentImage" class="comment-image-preview">
+      <img :src="commentImage" alt="待发布图片" />
+      <button class="remove-image-btn" @click="clearCommentImage">×</button>
     </div>
   </div>
 </template>
@@ -94,6 +118,13 @@ export default {
     return {
       activeImageIndex: 0,
       favorite: false,
+      commentDraft: "",
+      commentImage: "",
+      extraCommentCount: 0,
+      currentUser: {
+        username: "宠物爱好者",
+        avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
+      },
       fallbackService: {
         id: 1,
         type: "美容",
@@ -126,6 +157,7 @@ export default {
           content: "环境看起来很不错，我家猫也想去试试。",
           likes: 9,
           replyCount: 1,
+          replies: [],
           lastReply: "",
           liked: false
         },
@@ -137,12 +169,17 @@ export default {
           content: "价格很清楚，打算周末去看看。",
           likes: 4,
           replyCount: 2,
+          replies: [],
           lastReply: "",
           liked: false
         }
       ]
     }
   },
+
+	created() {
+		this.loadCurrentUser()
+	},
 
   computed: {
     service() {
@@ -181,6 +218,73 @@ export default {
       this.favorite = !this.favorite
     },
 
+    loadCurrentUser() {
+      const stored = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
+
+      if (!stored) {
+        return
+      }
+
+      this.currentUser = {
+        username: stored.username || stored.name || this.currentUser.username,
+        avatar: stored.avatar || this.currentUser.avatar
+      }
+    },
+
+    submitComment() {
+      const text = String(this.commentDraft || "").trim()
+
+      if (!text && !this.commentImage) {
+        return
+      }
+
+      this.commentList = [{
+        id: Date.now(),
+        name: this.currentUser.username,
+        time: this.formatNow(),
+        avatar: this.currentUser.avatar,
+        content: text,
+        image: this.commentImage,
+        likes: 0,
+        replyCount: 0,
+        replies: [],
+        lastReply: "",
+        liked: false,
+        isMine: true
+      }, ...this.commentList]
+
+      this.extraCommentCount += 1
+      this.commentDraft = ""
+      this.clearCommentImage()
+    },
+
+    triggerCommentImage() {
+      if (this.$refs.commentImageInput) {
+        this.$refs.commentImageInput.click()
+      }
+    },
+
+    handleCommentImageChange(event) {
+      const file = event.target.files && event.target.files[0]
+
+      if (!file) {
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        this.commentImage = reader.result
+      }
+      reader.readAsDataURL(file)
+    },
+
+    clearCommentImage() {
+      this.commentImage = ""
+      if (this.$refs.commentImageInput) {
+        this.$refs.commentImageInput.value = ""
+      }
+    },
+
     handleLikeComment(commentId) {
       this.commentList = this.commentList.map(comment => {
         if (comment.id !== commentId) {
@@ -206,13 +310,32 @@ export default {
           return comment
         }
 
+        const nextReplies = Array.isArray(comment.replies)
+          ? [...comment.replies]
+          : []
+
+        nextReplies.push({
+          text: payload.text,
+          image: payload.image || "",
+          targetName: payload.targetName || comment.name,
+          avatar: this.currentUser.avatar,
+          time: this.formatNow()
+        })
+
         return {
           ...comment,
           replyCount: (comment.replyCount || 0) + 1,
-          lastReply: payload.text
+          replies: nextReplies,
+          lastReply: payload.text || (payload.image ? "[图片]" : "")
         }
       })
     },
+
+		formatNow() {
+			const now = new Date()
+			const pad = value => String(value).padStart(2, "0")
+			return `${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+		},
 
     normalizeArray(value, fallback) {
       if (!value) {
@@ -291,7 +414,7 @@ export default {
 .service-detail-page {
   min-height: 100vh;
   background: #f6f6fa;
-  padding-bottom: 24px;
+  padding-bottom: 96px;
 }
 
 .top-bar {
@@ -529,6 +652,103 @@ export default {
   font-size: 14px;
   font-weight: 600;
   color: #8673d6;
+}
+
+.comment-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  background: rgba(246, 246, 250, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.image-input {
+  display: none;
+}
+
+.attach-btn {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #8d79d2;
+  font-size: 28px;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(43, 35, 55, 0.1);
+  cursor: pointer;
+}
+
+.input-box {
+  flex: 1;
+  height: 56px;
+  padding: 16px 20px;
+  border-radius: 28px;
+  background: #fff;
+  color: #3f3232;
+  font-size: 16px;
+  box-shadow: 0 8px 24px rgba(43, 35, 55, 0.06);
+  border: none;
+  outline: none;
+  resize: none;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+.input-box::placeholder {
+  color: #b3acb8;
+}
+
+.send-btn {
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 50%;
+  background: #7f5dcd;
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 10px 24px rgba(200, 184, 238, 0.45);
+  cursor: pointer;
+}
+
+.comment-image-preview {
+  position: fixed;
+  right: 18px;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 21;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(43, 35, 55, 0.14);
+}
+
+.comment-image-preview img {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.remove-image-btn {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: #8d79d2;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 @media (max-width: 640px) {

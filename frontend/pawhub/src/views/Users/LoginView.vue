@@ -79,15 +79,31 @@ export default {
         this.loading = true;
 
         const res = await login(this.form);
+        const payload = res?.data || res || {};
 
         // client 的响应拦截器已返回 response.data，这里兼容两种结构
-        const token = res?.token || res?.data?.token;
+        const token = payload?.token;
 
         if (!token) {
           throw new Error("登录响应中未找到 token");
         }
 
         localStorage.setItem("token", token);
+
+        const userId = payload?.userId || payload?.id;
+        if (userId !== undefined && userId !== null) {
+          localStorage.setItem("userId", String(userId));
+        }
+
+        const profile = {
+          username: payload?.username || "",
+          email: payload?.email || this.form.account,
+          avatar: payload?.avatar || "",
+          bio: payload?.bio || "",
+          followerCount: Number(payload?.followerCount ?? 0),
+          followingCount: Number(payload?.followingCount ?? 0)
+        };
+        localStorage.setItem("pawhub_user_profile", JSON.stringify(profile));
 
         this.$message.success("登录成功");
 
