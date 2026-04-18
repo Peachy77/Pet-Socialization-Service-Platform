@@ -5,9 +5,11 @@ import com.jtyu.backend.model.Result;
 import com.jtyu.backend.model.User;
 import com.jtyu.backend.service.FollowService;
 import com.jtyu.backend.service.UserService;
+import com.jtyu.backend.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,9 +36,24 @@ public class UserController {
             return Result.error("邮箱或密码错误");
         }
 
-        // TODO: 生成 JWT token 并返回
-        return Result.success(user);
+        // 生成 token
+        Integer userId = (Integer) user.get("userId");
+        String token = JwtUtil.generateToken(userId, email);
+
+        // 构建返回结果（包含 token）
+        Map<String, Object> result = new HashMap<>();
+        result.put("token", token);
+        result.put("userId", user.get("userId"));
+        result.put("username", user.get("username"));
+        result.put("email", user.get("email"));
+        result.put("avatar", user.get("avatar"));
+        result.put("bio", user.get("bio"));
+        result.put("followerCount", user.get("followerCount"));
+        result.put("followingCount", user.get("followingCount"));
+
+        return Result.success(result);
     }
+
 
     // POST /users/register - 用户注册
     @PostMapping("/users/register")
@@ -54,7 +71,19 @@ public class UserController {
             return Result.error("邮箱已被注册");
         }
 
-        // TODO: 生成 JWT token 并返回
+        // 生成 token
+        String token = JwtUtil.generateToken(user.getUserId(), email);
+
+        // 构建返回结果（包含 token）
+        Map<String, Object> result = new HashMap<>();
+        result.put("token", token);
+        result.put("userId", user.getUserId());
+        result.put("username", user.getUsername());
+        result.put("email", user.getEmail());
+        result.put("avatar", user.getAvatar());
+        result.put("bio", user.getBio());
+        result.put("followerCount", user.getFollowerCount());
+        result.put("followingCount", user.getFollowingCount());
         return Result.success(user);
     }
 

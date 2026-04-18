@@ -6,9 +6,10 @@ import com.jtyu.backend.model.Follow;
 import com.jtyu.backend.service.FollowService;
 import org.apache.ibatis.annotations.Mapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Mapper
+@Service
 public class FollowServiceImpl implements FollowService {
     @Autowired
     private FollowMapper followMapper;
