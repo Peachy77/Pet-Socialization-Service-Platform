@@ -11,11 +11,9 @@ server:
 
 mybatis:
   configuration:
-<<<<<<< HEAD
-    map-underscore-to-camel-case=true:
-=======
+
     map-underscore-to-camel-case: true
 
 file:
   base-path: D:/IDEAproject/backend
->>>>>>> 3c551e171800da51349e9c969fc119aae6263936
+

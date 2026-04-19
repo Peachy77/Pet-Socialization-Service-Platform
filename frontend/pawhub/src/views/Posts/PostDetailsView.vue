@@ -86,7 +86,6 @@
 
 		<div class="comment-bar">
 			<input
-<<<<<<< HEAD
 				v-model="commentInput"
 				type="text"
 				class="input-box"
@@ -94,27 +93,6 @@
 				@keyup.enter="submitComment"
 			/>
 			<button class="send-btn">➤</button>
-=======
-				ref="commentImageInput"
-				type="file"
-				accept="image/*"
-				class="image-input"
-				@change="handleCommentImageChange"
-			/>
-			<button class="attach-btn" @click="triggerCommentImage">＋</button>
-			<textarea
-				v-model.trim="commentDraft"
-				class="input-box"
-				placeholder="写评论..."
-				rows="1"
-			/>
-			<button class="send-btn" @click="submitComment">➤</button>
-		</div>
-
-		<div v-if="commentImage" class="comment-image-preview">
-			<img :src="commentImage" alt="待发布图片" />
-			<button class="remove-image-btn" @click="clearCommentImage">×</button>
->>>>>>> 3c551e171800da51349e9c969fc119aae6263936
 		</div>
 	</div>
 </template>  -->
@@ -214,7 +192,6 @@ export default {
 			liked: false,
 			followed: false,
 			activeImageIndex: 0,
-<<<<<<< HEAD
 			// fallbackPost: {
 			// 	id: 1,
 			// 	name: "柴犬小乖",
@@ -258,56 +235,6 @@ export default {
 			post: null,
 			commentList: [],
 			commentInput: ""
-=======
-			commentDraft: "",
-			commentImage: "",
-			extraCommentCount: 0,
-			currentUser: {
-				username: "宠物爱好者",
-				avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
-			},
-			fallbackPost: {
-				id: 1,
-				name: "柴犬小乖",
-				time: "2小时前",
-				avatar: "https://i.pravatar.cc/100?img=3",
-				images: [
-					"https://images.unsplash.com/photo-1583511655857-d19b40a7a54e",
-					"https://images.unsplash.com/photo-1558788353-f76d92427f16"
-				],
-				content:
-					"今天带我家毛孩子去美容院做了个新造型，超级可爱！推荐大家去试试这家店，服务态度很好，技术也专业。",
-				tags: ["宠物美容", "柴犬", "日常分享"],
-				likes: 234,
-				comments: 45
-			},
-			commentList: [
-				{
-					id: 1,
-					name: "猫咪铲屎官",
-					time: "1小时前",
-					avatar: "https://i.pravatar.cc/100?img=5",
-					content: "好可爱！我家猫咪也想去试试。",
-					likes: 12,
-					replyCount: 2,
-					replies: [],
-					lastReply: "",
-					liked: false
-				},
-				{
-					id: 2,
-					name: "小鱼",
-					time: "刚刚",
-					avatar: "https://i.pravatar.cc/100?img=12",
-					content: "这家店看起来很不错，收藏了。",
-					likes: 6,
-					replyCount: 1,
-					replies: [],
-					lastReply: "",
-					liked: false
-				}
-			]
->>>>>>> 3c551e171800da51349e9c969fc119aae6263936
 		}
 	},
 
@@ -420,32 +347,32 @@ export default {
 			}
 		},
 
-		submitComment() {
-			const text = String(this.commentDraft || "").trim()
+		// submitComment() {
+		// 	const text = String(this.commentDraft || "").trim()
 
-			if (!text && !this.commentImage) {
-				return
-			}
+		// 	if (!text && !this.commentImage) {
+		// 		return
+		// 	}
 
-			this.commentList = [{
-				id: Date.now(),
-				name: this.currentUser.username,
-				time: this.formatNow(),
-				avatar: this.currentUser.avatar,
-				content: text,
-				image: this.commentImage,
-				likes: 0,
-				replyCount: 0,
-				replies: [],
-				lastReply: "",
-				liked: false,
-				isMine: true
-			}, ...this.commentList]
+		// 	this.commentList = [{
+		// 		id: Date.now(),
+		// 		name: this.currentUser.username,
+		// 		time: this.formatNow(),
+		// 		avatar: this.currentUser.avatar,
+		// 		content: text,
+		// 		image: this.commentImage,
+		// 		likes: 0,
+		// 		replyCount: 0,
+		// 		replies: [],
+		// 		lastReply: "",
+		// 		liked: false,
+		// 		isMine: true
+		// 	}, ...this.commentList]
 
-			this.extraCommentCount += 1
-			this.commentDraft = ""
-			this.clearCommentImage()
-		},
+		// 	this.extraCommentCount += 1
+		// 	this.commentDraft = ""
+		// 	this.clearCommentImage()
+		// },
 
 		triggerCommentImage() {
 			if (this.$refs.commentImageInput) {
@@ -482,7 +409,6 @@ export default {
 		},
 
 		handleReplyComment(payload) {
-<<<<<<< HEAD
 			this.commentList = this.commentList.map(c => {
 				if (c.id !== payload.id) return c
 				return { ...c, replyCount: c.replyCount + 1, lastReply: payload.text }
@@ -524,39 +450,6 @@ export default {
 		console.error('发表评论失败:', error)
 	}
 },
-=======
-			this.commentList = this.commentList.map(comment => {
-				if (comment.id !== payload.id) {
-					return comment
-				}
-
-				const nextReplies = Array.isArray(comment.replies)
-					? [...comment.replies]
-					: []
-
-				nextReplies.push({
-					text: payload.text,
-					image: payload.image || "",
-					targetName: payload.targetName || comment.name,
-					avatar: this.currentUser.avatar,
-					time: this.formatNow()
-				})
-
-				return {
-					...comment,
-					replyCount: (comment.replyCount || 0) + 1,
-					replies: nextReplies,
-					lastReply: payload.text || (payload.image ? "[图片]" : "")
-				}
-			})
-		},
-
-		formatNow() {
-			const now = new Date()
-			const pad = value => String(value).padStart(2, "0")
-			return `${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
-		},
->>>>>>> 3c551e171800da51349e9c969fc119aae6263936
 
 		handleGalleryScroll(event) {
 			const container = event.target
