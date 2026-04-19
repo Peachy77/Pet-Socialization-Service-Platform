@@ -56,6 +56,7 @@
 				v-for="post in posts"
 				:key="post.id"
 				:post="post"
+				@toggle-like="handleToggleLike"
 			/>
 		</div>
 	</div>
@@ -63,6 +64,7 @@
 
 <script>
 import PostCard from "@/components/PostCard.vue"
+import { likePost, unlikePost } from "@/api/posts"
 
 export default {
 	name: "UserInformationView",
@@ -74,6 +76,7 @@ export default {
 	data() {
 		return {
 			isFollowing: false,
+			likingPostIds: [],
 			profile: {
 				id: "",
 				username: "宠物爱好者",
@@ -115,9 +118,65 @@ export default {
 
 	created() {
 		this.loadProfile()
+		this.posts = this.posts.map(post => this.normalizePost(post)).filter(Boolean)
 	},
 
 	methods: {
+		toArray(value) {
+			if (Array.isArray(value)) return value
+
+			if (typeof value === "string") {
+				try {
+					const parsed = JSON.parse(value)
+					if (Array.isArray(parsed)) return parsed
+				} catch (error) {
+					// 非 JSON 字符串时按逗号拆分
+				}
+
+				return value
+					.split(",")
+					.map(item => item.trim())
+					.filter(Boolean)
+			}
+
+			return []
+		},
+
+		toBooleanLikeFlag(value) {
+			if (typeof value === "boolean") return value
+			if (typeof value === "number") return value === 1
+
+			if (typeof value === "string") {
+				const text = value.trim().toLowerCase()
+				if (["1", "true", "yes", "y", "liked", "已点赞"].includes(text)) return true
+				if (["0", "false", "no", "n", "unliked", "未点赞", ""].includes(text)) return false
+			}
+
+			return false
+		},
+
+		resolveLiked(post) {
+			const directFlag = post.liked ?? post.isLiked ?? post.is_liked ?? post.hasLiked ?? post.likeStatus
+			if (directFlag !== undefined && directFlag !== null) {
+				return this.toBooleanLikeFlag(directFlag)
+			}
+
+			const currentUserId = String(localStorage.getItem("userId") || "")
+			if (!currentUserId) return false
+
+			const likedUserIds = this.toArray(post.likedUserIds || post.likeUserIds || post.likerIds)
+			return likedUserIds.map(item => String(item)).includes(currentUserId)
+		},
+
+		normalizePost(post) {
+			if (!post || typeof post !== "object") return null
+
+			return {
+				...post,
+				liked: this.resolveLiked(post)
+			}
+		},
+
 		goBack() {
 			this.$router.back()
 		},
@@ -163,6 +222,63 @@ export default {
 					type: "private"
 				}
 			})
+		},
+
+		isLiking(postId) {
+			return this.likingPostIds.includes(postId)
+		},
+
+		async handleToggleLike(post) {
+			const postId = post?.id
+			if (!postId || this.isLiking(postId)) return
+
+			const target = this.posts.find(item => item.id === postId)
+			if (!target) return
+
+			const previousLiked = !!target.liked
+			const previousLikes = Number(target.likes || 0)
+
+			target.liked = !previousLiked
+			target.likes = previousLiked
+				? Math.max(0, previousLikes - 1)
+				: previousLikes + 1
+
+			this.likingPostIds.push(postId)
+
+			try {
+				const response = previousLiked
+					? await unlikePost(postId)
+					: await likePost(postId)
+				this.unwrapPayload(response)
+			} catch (error) {
+				target.liked = previousLiked
+				target.likes = previousLikes
+				const msg = error?.response?.data?.message || error?.message || "点赞操作失败"
+				this.$message.error(msg)
+			} finally {
+				this.likingPostIds = this.likingPostIds.filter(id => id !== postId)
+			}
+		},
+
+		unwrapPayload(response) {
+			const code = response?.code
+			const normalizedCode = code === undefined || code === null ? null : String(code)
+			const isBusinessSuccess =
+				normalizedCode === null ||
+				normalizedCode === "0" ||
+				normalizedCode === "1" ||
+				normalizedCode === "200" ||
+				response?.success === true
+
+			if (!isBusinessSuccess) {
+				throw new Error(response?.message || response?.msg || "请求失败")
+			}
+
+			if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+				return response.data
+			}
+
+			return response
 		}
 	}
 }

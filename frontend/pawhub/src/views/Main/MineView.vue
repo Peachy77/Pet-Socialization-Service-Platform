@@ -88,6 +88,7 @@
         v-for="post in posts"
         :key="post.id"
         :post="post"
+        @toggle-like="handleToggleLike"
       />
     </div>
 
@@ -125,17 +126,11 @@ import ServiceCard from "@/components/ServiceCard.vue"
 import OrderList from "@/components/OrderList.vue"
 import { getCurrentUser, getMyPosts, getMyFavorites, getMyOrders, getUser } from "@/api/users"
 import { cancelOrder as cancelOrderApi } from "@/api/orders"
+import { likePost, unlikePost } from "@/api/posts"
 import defaultCatAvatar from "@/assets/cat.png"
 
 export default {
   name: "MineView",
-
-  components: {
-    BottomNav,
-    PostCard,
-    ServiceCard,
-    OrderList
-  },
 
   data(){
     return{
@@ -143,7 +138,7 @@ export default {
         email:"",
         username:"未登录用户",
         avatar:"https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
-        bio:"",
+        bio:"这个人很神秘，什么介绍也没有",
         followerCount:0,
         followingCount:0,
         likesCount:0
@@ -151,8 +146,16 @@ export default {
       activeTab:"posts",
       posts:[],
       favoriteServices:[],
-      orders:[]
+      orders:[],
+      likingPostIds:[]
     }
+  },
+
+  components: {
+    BottomNav,
+    PostCard,
+    ServiceCard,
+    OrderList
   },
 
   async created(){
@@ -175,6 +178,16 @@ export default {
       }
 
       return avatar
+    },
+
+    normalizeBio(bio, intro){
+      const raw = bio ?? intro
+      if (raw === null || raw === undefined) {
+        return "这个人很神秘，什么介绍也没有~"
+      }
+
+      const text = String(raw).trim()
+      return text || "这个人很神秘，什么介绍也没有~"
     },
 
     unwrapPayload(response){
@@ -263,7 +276,7 @@ export default {
         email: user.email || user.account || "",
         username: user.username || user.name || "未命名用户",
         avatar: this.resolveAvatar(user.avatar || user.avatarUrl),
-        bio: user.bio || user.intro || "",
+        bio: this.normalizeBio(user.bio, user.intro),
         followerCount: Number(user.followerCount ?? user.follower_count ?? 0),
         followingCount: Number(user.followingCount ?? user.following_count ?? 0),
         likesCount: Number(user.likesCount ?? user.likeCount ?? user.likes ?? 0)
@@ -274,6 +287,32 @@ export default {
       const cached = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
       if (!cached || typeof cached !== "object") return null
       return this.mapProfile(cached)
+    },
+
+    toBooleanLikeFlag(value){
+      if (typeof value === "boolean") return value
+      if (typeof value === "number") return value === 1
+
+      if (typeof value === "string") {
+        const text = value.trim().toLowerCase()
+        if (["1", "true", "yes", "y", "liked", "已点赞"].includes(text)) return true
+        if (["0", "false", "no", "n", "unliked", "未点赞", ""].includes(text)) return false
+      }
+
+      return false
+    },
+
+    resolveLiked(post){
+      const directFlag = post.liked ?? post.isLiked ?? post.is_liked ?? post.hasLiked ?? post.likeStatus
+      if (directFlag !== undefined && directFlag !== null) {
+        return this.toBooleanLikeFlag(directFlag)
+      }
+
+      const currentUserId = String(localStorage.getItem("userId") || "")
+      if (!currentUserId) return false
+
+      const likedUserIds = this.toArray(post.likedUserIds || post.likeUserIds || post.likerIds)
+      return likedUserIds.map(item => String(item)).includes(currentUserId)
     },
 
     mapPost(post){
@@ -291,7 +330,8 @@ export default {
         content: post.content || post.text || "",
         tags,
         likes: Number(post.likes ?? post.likeCount ?? post.like_count ?? 0),
-        comments: Number(post.comments ?? post.commentCount ?? post.comment_count ?? 0)
+        comments: Number(post.comments ?? post.commentCount ?? post.comment_count ?? 0),
+        liked: this.resolveLiked(post)
       }
     },
 
@@ -485,6 +525,42 @@ export default {
       const date = new Date()
       const pad = (value) => String(value).padStart(2, "0")
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+    },
+
+    isLiking(postId){
+      return this.likingPostIds.includes(postId)
+    },
+
+    async handleToggleLike(post){
+      const postId = post?.id
+      if (!postId || this.isLiking(postId)) return
+
+      const target = this.posts.find(item => item.id === postId)
+      if (!target) return
+
+      const previousLiked = !!target.liked
+      const previousLikes = Number(target.likes || 0)
+
+      target.liked = !previousLiked
+      target.likes = previousLiked
+        ? Math.max(0, previousLikes - 1)
+        : previousLikes + 1
+
+      this.likingPostIds.push(postId)
+
+      try {
+        const response = previousLiked
+          ? await unlikePost(postId)
+          : await likePost(postId)
+        this.unwrapPayload(response)
+      } catch (error) {
+        target.liked = previousLiked
+        target.likes = previousLikes
+        const msg = error?.response?.data?.message || error?.message || "点赞操作失败"
+        this.$message.error(msg)
+      } finally {
+        this.likingPostIds = this.likingPostIds.filter(id => id !== postId)
+      }
     }
   }
 }

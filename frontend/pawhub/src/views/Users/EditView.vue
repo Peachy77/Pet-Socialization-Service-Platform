@@ -77,6 +77,7 @@
 
 <script>
 import { updateCurrentUser } from "@/api/users"
+import { uploadFile } from "@/api/upload"
 
 export default {
 	name: "EditView",
@@ -119,19 +120,61 @@ export default {
 			this.avatarPreview = stored.avatar || this.form.avatar
 		},
 
-		handleAvatarChange(event) {
-			const file = event.target.files && event.target.files[0]
-			if (!file) return
+		resolveUploadedAvatarUrl(response) {
+			if (!response) return ""
 
-			const reader = new FileReader()
-			reader.onload = () => {
-				const result = reader.result
-				if (typeof result === "string") {
-					this.avatarPreview = result
-					this.form.avatar = result
+			if (typeof response === "string") {
+				return response
+			}
+
+			if (typeof response !== "object") {
+				return ""
+			}
+
+			const candidates = [
+				response.data,
+				response.url,
+				response.path,
+				response.fileUrl,
+				response.filePath
+			]
+
+			for (const candidate of candidates) {
+				if (typeof candidate === "string" && candidate) {
+					return candidate
 				}
 			}
-			reader.readAsDataURL(file)
+
+			if (response.data && typeof response.data === "object") {
+				return this.resolveUploadedAvatarUrl(response.data)
+			}
+
+			return ""
+		},
+
+		handleAvatarChange(event) {
+		const file = event.target.files && event.target.files[0]
+		if (!file) return
+
+		// 先本地预览
+		this.avatarPreview = URL.createObjectURL(file)
+
+		// 上传到后端
+		uploadFile(file).then(res => {
+			const url = this.resolveUploadedAvatarUrl(res)  // 兼容后端多层返回结构
+
+			if (!url) {
+				this.$message.warning("头像已上传，但未返回可用地址")
+				return
+			}
+
+			this.form.avatar = url
+			this.avatarPreview = url
+
+			this.$message.success("头像上传成功")
+		}).catch(() => {
+			this.$message.error("头像上传失败")
+		})
 		},
 
 		handleSave() {

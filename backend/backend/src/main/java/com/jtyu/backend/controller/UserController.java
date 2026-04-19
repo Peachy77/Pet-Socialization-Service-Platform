@@ -21,6 +21,7 @@ public class UserController {
     @Autowired
     private FollowService followService;
 
+
     // POST /users/login - 用户登录
     @PostMapping("/users/login")
     public Result login(@RequestBody Map<String, String> params) {
@@ -177,7 +178,7 @@ public class UserController {
     public Result getMyPosts(@RequestAttribute Integer currentUserId,
                              @RequestParam(defaultValue = "1") Integer page,
                              @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = userService.getUserPosts(currentUserId, page, pageSize);
+        Map<String, Object> result = userService.getUserPosts(currentUserId,currentUserId, page, pageSize);
         return Result.success(result);
     }
 
@@ -203,9 +204,10 @@ public class UserController {
     // GET /users/{userId}/posts - 获取指定用户的动态列表
     @GetMapping("/users/{userId}/posts")
     public Result getUserPosts(@PathVariable Integer userId,
+                               @RequestAttribute(required = false) Integer currentUserId,
                                @RequestParam(defaultValue = "1") Integer page,
                                @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = userService.getUserPosts(userId, page, pageSize);
+        Map<String, Object> result = userService.getUserPosts(userId, currentUserId, page, pageSize);
         return Result.success(result);
     }
 
