@@ -42,6 +42,8 @@
 </template>
 
 <script>
+import { createPrivateMessage } from '@/api/messages';
+
 export default {
   name: "MessagesDetailsView",
   data() {
@@ -52,67 +54,196 @@ export default {
         username: "",
         type: ""
       },
-      messages: [
-        {
-          text: "你好，最近怎么样？",
-          isSent: false,
-          time: "10:30"
-        },
-        {
-          text: "很好啊，你呢？",
-          isSent: true,
-          time: "10:31"
-        },
-        {
-          text: "我也不错，改天约一起玩",
-          isSent: false,
-          time: "10:32"
-        },
-        {
-          text: "好啊，周末可以吗？",
-          isSent: true,
-          time: "10:33"
-        }
-      ]
+      messages: []
+      // messages: [
+      //   {
+      //     text: "你好，最近怎么样？",
+      //     isSent: false,
+      //     time: "10:30"
+      //   },
+      //   {
+      //     text: "很好啊，你呢？",
+      //     isSent: true,
+      //     time: "10:31"
+      //   },
+      //   {
+      //     text: "我也不错，改天约一起玩",
+      //     isSent: false,
+      //     time: "10:32"
+      //   },
+      //   {
+      //     text: "好啊，周末可以吗？",
+      //     isSent: true,
+      //     time: "10:33"
+      //   }
+      // ]
     }
   },
-  mounted() {
-    // 从路由参数获取对话信息
-    const queryData = this.$route.query
-    this.conversation = {
-      avatar: queryData.avatar || "https://randomuser.me/api/portraits/women/44.jpg",
-      username: queryData.username || "用户",
-      type: queryData.type || "like"
+  computed: {
+    currentUserId() {
+      // 从 Vuex 或 localStorage 获取当前用户ID
+      return this.$store.state.user?.userId || JSON.parse(localStorage.getItem("user"))?.userId
     }
+  },
+  async mounted() {
+    // // 从路由参数获取对话信息
+    // const queryData = this.$route.query
+    // this.conversation = {
+    //   avatar: queryData.avatar || "https://randomuser.me/api/portraits/women/44.jpg",
+    //   username: queryData.username || "用户",
+    //   type: queryData.type || "like"
+    // }
+    // this.scrollToBottom()
+     const queryData = this.$route.query
+    const targetUserId = queryData.userId  // 对方用户ID
+  
+    if (!targetUserId) {
+      console.error("缺少对方用户ID")
+      return
+    }
+  
+    // 获取对方用户信息
+    await this.getUserInfo(targetUserId)
+  
+    // 获取聊天记录
+    await this.loadMessages(targetUserId)
+  
+    // 标记为已读
+    await this.markAsRead(targetUserId)
+  
     this.scrollToBottom()
-  },
+    },
   methods: {
+     async getUserInfo(userId) {
+    try {
+      const response = await this.$api.getUser(userId)
+      if (response.code === 0) {
+        this.conversation = {
+          avatar: response.data.avatar || "default.jpg",
+          username: response.data.username,
+        }
+      }
+    } catch (error) {
+      console.error("获取用户信息失败:", error)
+    }
+  },
+  
+  // 加载聊天记录
+  async loadMessages(targetUserId) {
+    try {
+      const response = await this.$api.getConversationMessages(targetUserId, {
+        page: 1,
+        pageSize: 50
+      })
+      if (response.code === 0) {
+        // 转换后端数据格式
+        this.messages = response.data.list.map(msg => ({
+          text: msg.content,
+          isSent: msg.sender_id === this.currentUserId,  // 根据当前用户判断
+          time: this.formatTime(msg.create_time),
+          messageId: msg.message_id,
+          images: msg.images
+        }))
+      }
+    } catch (error) {
+      console.error("加载聊天记录失败:", error)
+    }
+  },
+  
+  // 标记会话为已读
+  async markAsRead(targetUserId) {
+    try {
+      await this.$api.markConversationAsRead(targetUserId)
+    } catch (error) {
+      console.error("标记已读失败:", error)
+    }
+  },
+  
+  // 发送消息
+  async sendMessage() {
+    if (!this.inputText.trim()) return
+    
+          const content = this.inputText
+      this.inputText = ""
+      
+      // 先显示消息（乐观更新）
+      const tempMessage = {
+        text: content,
+        isSent: true,
+        time: this.formatTime(new Date()),
+        messageId: null
+      }
+      this.messages.push(tempMessage)
+      this.$nextTick(() => this.scrollToBottom())
+      
+      try {
+        const response = await createPrivateMessage({
+          receiver_id: this.conversation.userId,
+          content: content,
+          images: []
+        })
+        
+        if (response.code !== 0) {
+          // 发送失败，移除临时消息并提示
+          this.messages.pop()
+          console.error("发送失败:", response.message)
+        } else {
+          // 更新临时消息的 messageId
+          if (tempMessage.messageId === null && response.data) {
+            tempMessage.messageId = response.data
+          }
+        }
+      } catch (error) {
+        this.messages.pop()
+        console.error("发送消息失败:", error)
+      }
+    },
+    formatTime(dateTime) {
+      const date = new Date(dateTime)
+      const hours = date.getHours().toString().padStart(2, '0')
+      const minutes = date.getMinutes().toString().padStart(2, '0')
+      return `${hours}:${minutes}`
+    },
+    
     goBack() {
       this.$router.back()
     },
-    sendMessage() {
-      if (!this.inputText.trim()) return
-      
-      const now = new Date()
-      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
-      
-      this.messages.push({
-        text: this.inputText,
-        isSent: true,
-        time: time
-      })
-      
-      this.inputText = ""
-      this.$nextTick(() => {
-        this.scrollToBottom()
-      })
-    },
+    
     scrollToBottom() {
       if (this.$refs.messageArea) {
         this.$refs.messageArea.scrollTop = this.$refs.messageArea.scrollHeight
       }
     }
-  }
+  },
+  
+  // // 格式化时间
+  // formatTime(dateTime) {
+  //   const date = new Date(dateTime)
+  //   return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+  // },
+    // goBack() {
+    //   this.$router.back()
+    // },
+    // sendMessage() {
+    //   if (!this.inputText.trim()) return
+      
+    //   const now = new Date()
+    //   const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
+      
+    //   this.messages.push({
+    //     text: this.inputText,
+    //     isSent: true,
+    //     time: time
+    //   })
+      
+    //   this.inputText = ""
+    //   this.$nextTick(() => {
+    //     this.scrollToBottom()
+    //   })
+    // },
+
+
+  // }
 }
 </script>
 

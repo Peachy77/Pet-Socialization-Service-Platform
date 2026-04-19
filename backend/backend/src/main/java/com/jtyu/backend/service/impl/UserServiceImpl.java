@@ -77,6 +77,7 @@ public class UserServiceImpl implements UserService {
 
         int rows = userMapper.insert(user);
         if (rows > 0) {
+            System.out.println("插入后 userId: " + user.getUserId());
             return user;
         }
         return null;

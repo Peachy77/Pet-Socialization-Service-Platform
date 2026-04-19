@@ -84,7 +84,7 @@ public class UserController {
         result.put("bio", user.getBio());
         result.put("followerCount", user.getFollowerCount());
         result.put("followingCount", user.getFollowingCount());
-        return Result.success(user);
+        return Result.success(result);
     }
 
     // GET /users - 获取用户列表
