@@ -51,6 +51,8 @@ export default {
 			if (!confirmed) return
 
 			localStorage.removeItem("token")
+			localStorage.removeItem("userId")
+			localStorage.removeItem("pawhub_user_profile")
 			this.$message.success("已退出登录")
 			this.$router.replace({ name: "login" })
 		}

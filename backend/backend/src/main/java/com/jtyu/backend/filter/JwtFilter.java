@@ -26,7 +26,7 @@ public class JwtFilter implements Filter {
         HttpServletResponse response = (HttpServletResponse) res;
 
         // 1. 处理 CORS 跨域
-        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8080");
+        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8081");
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
         response.setHeader("Access-Control-Allow-Headers", "Content-Type, token, Authorization");
         response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -42,6 +42,13 @@ public class JwtFilter implements Filter {
         String method = request.getMethod();
         System.out.println("JwtFilter 拦截到请求: " + method + " " + uri);
 
+        // 放行静态资源（图片）
+        if (uri.startsWith("/uploads/")) {
+            System.out.println("放行静态资源: " + uri);
+            chain.doFilter(request, response);
+            return;
+        }
+
         // 3. 放行的路径列表（不需要 token）
         if ("/users/login".equals(uri) ||
                 "/users/register".equals(uri)) {
@@ -55,14 +62,22 @@ public class JwtFilter implements Filter {
         // 4. 获取请求头中的 token（前端用 Authorization: Bearer xxx 格式）
         String authHeader = request.getHeader("Authorization");
         String token = null;
+//
+//        if (StringUtils.hasLength(authHeader) && authHeader.startsWith("Bearer ")) {
+//            token = authHeader.substring(7);
+//        }
+//
+//        // 也兼容直接传 token 头的方式
+//        if (!StringUtils.hasLength(token)) {
+//            token = request.getHeader("token");
+//        }
 
         if (StringUtils.hasLength(authHeader) && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-        }
-
-        // 也兼容直接传 token 头的方式
-        if (!StringUtils.hasLength(token)) {
-            token = request.getHeader("token");
+            // 去掉可能存在的引号
+            if (token != null && token.startsWith("\"") && token.endsWith("\"")) {
+                token = token.substring(1, token.length() - 1);
+            }
         }
 
         System.out.println("收到的 token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
@@ -85,6 +100,7 @@ public class JwtFilter implements Filter {
             System.out.println("token 解析成功，userId: " + userId);
             // 将 userId 存入 request 属性，供 Controller 使用
             request.setAttribute("currentUserId", userId);
+            System.out.println("设置 currentUserId: " + userId);
         } catch (Exception e) {
             System.out.println("token 解析失败: " + e.getMessage());
             e.printStackTrace();

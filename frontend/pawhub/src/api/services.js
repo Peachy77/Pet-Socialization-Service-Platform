@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import apiClient from "./client";
 
 function normalizeServicePayload(data = {}) {

@@ -37,10 +37,13 @@ public class PostServiceImpl implements PostService {
                     .collect(Collectors.toList());
             List<Integer> likedIds = likeMapper.selectLikedPostIds(currentUserId, postIds);
             for (Map<String, Object> post : list) {
-                post.put("is_liked", likedIds.contains(post.get("post_id")));
+                boolean liked = likedIds.contains(post.get("post_id"));
+                post.put("isLiked", liked);
+                post.put("is_liked", liked);
             }
         } else {
             for (Map<String, Object> post : list) {
+                post.put("isLiked", false);
                 post.put("is_liked", false);
             }
         }
@@ -58,8 +61,10 @@ public class PostServiceImpl implements PostService {
         Map<String, Object> post = postMapper.selectById(postId);
         if (post != null && currentUserId != null) {
             boolean isLiked = likeMapper.exists(currentUserId, postId) > 0;
+            post.put("isLiked", isLiked);
             post.put("is_liked", isLiked);
         } else if (post != null) {
+            post.put("isLiked", false);
             post.put("is_liked", false);
         }
         return post;

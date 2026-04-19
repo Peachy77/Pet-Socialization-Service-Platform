@@ -11,7 +11,7 @@ public interface UserMapper {
 
     // ========== 认证相关 ==========
 
-    @Select("SELECT user_id, username, email, password, avatar, bio, follower_count, following_count " +
+    @Select("SELECT user_id as user_id, username, email, password, avatar, bio, follower_count, following_count " +
             "FROM user WHERE email = #{email}")
     User selectByEmail(@Param("email") String email);
 

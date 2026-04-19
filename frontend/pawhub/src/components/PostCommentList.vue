@@ -2,6 +2,14 @@
   <div class="comments-block">
     <div class="comments-title">全部评论 <span>({{ comments.length }})</span></div>
 
+    <input
+      ref="replyImageInput"
+      type="file"
+      accept="image/*"
+      class="reply-image-input"
+      @change="handleReplyImageChange"
+    />
+
     <div
       v-for="comment in comments"
       :key="comment.id"
@@ -17,11 +25,17 @@
 
         <div class="comment-text">{{ comment.content }}</div>
 
+        <div v-if="comment.image" class="comment-image-wrap">
+          <img :src="comment.image" class="comment-image" alt="评论图片" />
+        </div>
+
         <div class="comment-actions">
-          <button class="action-btn" @click="onLike(comment)">
-            <span :class="['like-icon', { liked: comment.liked }]">
-              {{ comment.liked ? '♥' : '♡' }}
-            </span>
+          <button class="action-btn" :class="{ liked: comment.liked }" @click="onLike(comment)">
+            <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+              <path
+                d="M12 21s-7.2-4.7-9.6-9C.6 8.7 2.1 5.2 5.6 5c2.1-.1 3.4 1 4.4 2.2C11 6 12.3 4.9 14.4 5c3.5.2 5 3.7 3.2 7-2.4 4.3-9.6 9-9.6 9z"
+              />
+            </svg>
             <span>{{ comment.likes }}</span>
           </button>
           <button class="action-btn" @click="toggleReply(comment.id)">
@@ -30,18 +44,37 @@
         </div>
 
         <div v-if="activeReplyId === comment.id" class="reply-box">
-          <input
+          <button type="button" class="reply-attach" @click="triggerReplyImage">＋</button>
+          <textarea
             v-model.trim="replyDraft"
-            type="text"
             class="reply-input"
-            placeholder="回复这条评论..."
-            @keyup.enter="submitReply(comment)"
-          />
+            placeholder="回复这条评论...支持多行输入"
+          ></textarea>
           <button class="reply-send" @click="submitReply(comment)">发送</button>
         </div>
 
-        <div v-if="comment.lastReply" class="reply-preview">
-          你回复了：{{ comment.lastReply }}
+        <div v-if="activeReplyId === comment.id && replyImage" class="reply-image-preview">
+          <img :src="replyImage" alt="待发送回复图片" />
+          <button class="reply-image-remove" @click="clearReplyImage">×</button>
+        </div>
+
+        <div v-if="replyItems(comment).length" class="reply-preview-list">
+          <div
+            v-for="(reply, index) in replyItems(comment)"
+            :key="`${comment.id}-reply-${index}`"
+            class="reply-preview"
+          >
+            <img
+              :src="reply.avatar || currentUserAvatar || comment.avatar"
+              class="reply-user-avatar"
+              alt="我的头像"
+            />
+            <div class="reply-preview-content">
+              <div v-if="reply.text">你回复了（{{ reply.targetName || comment.name }}）：{{ reply.text }}</div>
+              <div v-else>你回复了（{{ reply.targetName || comment.name }}）：[图片]</div>
+              <img v-if="reply.image" :src="reply.image" class="reply-preview-image" alt="回复图片" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -56,13 +89,18 @@ export default {
     comments: {
       type: Array,
       default: () => []
+    },
+    currentUserAvatar: {
+      type: String,
+      default: ""
     }
   },
 
   data() {
     return {
       activeReplyId: null,
-      replyDraft: ""
+      replyDraft: "",
+      replyImage: ""
     }
   },
 
@@ -71,28 +109,78 @@ export default {
       this.$emit("like-comment", comment.id)
     },
 
+    replyItems(comment) {
+      if (Array.isArray(comment.replies)) {
+        return comment.replies.map(reply => ({
+          ...reply,
+          targetName: reply.targetName || comment.name
+        }))
+      }
+
+      if (comment.lastReply) {
+        return [{
+          text: comment.lastReply,
+          targetName: comment.name
+        }]
+      }
+
+      return []
+    },
+
     toggleReply(commentId) {
       if (this.activeReplyId === commentId) {
         this.activeReplyId = null
         this.replyDraft = ""
+        this.clearReplyImage()
         return
       }
 
       this.activeReplyId = commentId
       this.replyDraft = ""
+      this.clearReplyImage()
+    },
+
+    triggerReplyImage() {
+      if (this.$refs.replyImageInput) {
+        this.$refs.replyImageInput.click()
+      }
+    },
+
+    handleReplyImageChange(event) {
+      const file = event.target.files && event.target.files[0]
+
+      if (!file) {
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        this.replyImage = reader.result
+      }
+      reader.readAsDataURL(file)
+    },
+
+    clearReplyImage() {
+      this.replyImage = ""
+      if (this.$refs.replyImageInput) {
+        this.$refs.replyImageInput.value = ""
+      }
     },
 
     submitReply(comment) {
-      if (!this.replyDraft) {
+      if (!this.replyDraft && !this.replyImage) {
         return
       }
 
       this.$emit("reply-comment", {
         id: comment.id,
-        text: this.replyDraft
+        targetName: comment.name,
+        text: this.replyDraft,
+        image: this.replyImage
       })
 
       this.replyDraft = ""
+      this.clearReplyImage()
       this.activeReplyId = null
     }
   }
@@ -185,20 +273,58 @@ export default {
   cursor: pointer;
 }
 
-.like-icon {
-  color: #6b6291;
-  font-size: 13px;
-  line-height: 1;
+.heart-icon {
+  width: 14px;
+  height: 14px;
 }
 
-.like-icon.liked {
+.heart-icon path {
+  fill: transparent;
+  stroke: #6b6291;
+  stroke-width: 1.8;
+  transition: 0.2s;
+}
+
+.action-btn.liked {
   color: #ff4d5a;
+}
+
+.action-btn.liked .heart-icon path {
+  fill: #ff4d5a;
+  stroke: #ff4d5a;
+}
+
+.comment-image-wrap {
+  margin-top: 10px;
+}
+
+.comment-image {
+  width: min(240px, 100%);
+  border-radius: 10px;
+  display: block;
+  object-fit: cover;
+}
+
+.reply-image-input {
+  display: none;
 }
 
 .reply-box {
   display: flex;
   gap: 8px;
   margin-top: 10px;
+}
+
+.reply-attach {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: #f2eefb;
+  color: #7b67c7;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .reply-input {
@@ -226,12 +352,65 @@ export default {
   font-size: 12px;
 }
 
+.reply-image-preview {
+  position: relative;
+  margin-top: 8px;
+  width: 88px;
+}
+
+.reply-image-preview img {
+  width: 88px;
+  height: 88px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+.reply-image-remove {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: #8673d6;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .reply-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin-top: 8px;
   font-size: 13px;
   color: #5f5880;
   background: #f5f2fc;
   border-radius: 8px;
   padding: 6px 10px;
+}
+
+.reply-user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+
+.reply-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-preview-image {
+  margin-top: 6px;
+  width: min(200px, 100%);
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
 }
 </style>

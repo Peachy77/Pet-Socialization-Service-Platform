@@ -41,7 +41,7 @@ public interface UserService {
     Map<String, Object> getFollowersList(Integer userId, Integer page, Integer pageSize);
 
     // 获取用户的动态列表
-    Map<String, Object> getUserPosts(Integer userId, Integer page, Integer pageSize);
+    Map<String, Object> getUserPosts(Integer userId,Integer currentUserId, Integer page, Integer pageSize);
 
     // 获取用户的收藏列表
     Map<String, Object> getUserFavorites(Integer userId, Integer page, Integer pageSize);

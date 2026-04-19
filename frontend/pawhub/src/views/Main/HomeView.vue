@@ -21,7 +21,10 @@
     v-for="post in posts"
     :key="post.id"
     :post="post"
+    @toggle-like="handleToggleLike"
   />
+  <div v-if="loading" class="tips">加载中...</div>
+  <div v-else-if="!posts.length" class="tips">暂无动态，快去发布第一条吧</div>
 </div>
 
 <!-- 底部导航 -->
@@ -36,6 +39,7 @@ import SearchBar from "@/components/SearchBar.vue"
 import ServiceMenu from "@/components/ServiceMenu.vue"
 import PostCard from "@/components/PostCard.vue"
 import BottomNav from "@/components/BottomNav.vue"
+import { getPosts, likePost, unlikePost } from "@/api/posts"
 
 export default {
 
@@ -50,103 +54,166 @@ export default {
 
   data(){
     return{
-
-      posts:[
-
-        {
-          id:1,
-          name:"柴犬小乖",
-          time:"2小时前",
-          avatar:"https://i.pravatar.cc/100?img=3",
-          images:[
-            "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e",
-            "https://images.unsplash.com/photo-1558788353-f76d92427f16"
-          ],
-          content:"今天带我家毛孩子去美容院做了个新造型，超级可爱！",
-          tags:["宠物美容","柴犬"],
-          likes:234,
-          comments:45
-        },
-
-        {
-          id:2,
-          name:"猫咪铲屎官",
-          time:"5小时前",
-          avatar:"https://i.pravatar.cc/100?img=5",
-          images:[
-            "https://images.unsplash.com/photo-1518791841217-8f162f1e1131"
-          ],
-          content:"我家猫猫今天超级乖，在阳台晒太阳一下午。",
-          tags:["猫咪","日常"],
-          likes:120,
-          comments:12
-        },
-
-        {
-          id:3,
-          name:"金毛阿福",
-          time:"昨天",
-          avatar:"https://i.pravatar.cc/100?img=8",
-          images:[
-            "https://images.unsplash.com/photo-1507146426996-ef05306b995a",
-            "https://images.unsplash.com/photo-1561037404-61cd46aa615b",
-            "https://images.unsplash.com/photo-1548199973-03cce0bbc87b"
-          ],
-          content:"带阿福去海边玩了一整天，太开心啦！",
-          tags:["金毛","海边"],
-          likes:380,
-          comments:60
-        },
-
-        {
-          id:4,
-          name:"布偶猫团子",
-          time:"昨天",
-          avatar:"https://i.pravatar.cc/100?img=9",
-          images:[
-            "https://images.unsplash.com/photo-1513364776144-60967b0f800f",
-            "https://images.unsplash.com/photo-1592194996308-7b43878e84a6",
-            "https://images.unsplash.com/photo-1518791841217-8f162f1e1131",
-            "https://images.unsplash.com/photo-1574158622682-e40e69881006"
-          ],
-          content:"新买的猫爬架，团子玩疯了。",
-          tags:["布偶猫"],
-          likes:188,
-          comments:21
-        },
-
-        {
-          id:5,
-          name:"宠物摄影师",
-          time:"1天前",
-          avatar:"https://i.pravatar.cc/100?img=11",
-          images:[
-
-            /* 九宫格 */
-
-            "https://images.unsplash.com/photo-1543466835-00a7907e9de1",
-            "https://images.unsplash.com/photo-1552053831-71594a27632d",
-            "https://images.unsplash.com/photo-1568572933382-74d440642117",
-
-            "https://images.unsplash.com/photo-1583511655826-05700442b31b",
-            "https://images.unsplash.com/photo-1507149833265-60c372daea22",
-            "https://images.unsplash.com/photo-1517423440428-a5a00ad493e8",
-
-            "https://images.unsplash.com/photo-1558788353-f76d92427f16",
-            "https://images.unsplash.com/photo-1518717758536-85ae29035b6d",
-            "https://images.unsplash.com/photo-1583337130417-3346a1be7dee"
-          ],
-          content:"今天拍了一组狗狗写真，分享给大家。",
-          tags:["宠物摄影"],
-          likes:650,
-          comments:90
-        }
-      ]
-
+      loading:false,
+      posts:[],
+      likingPostIds:[]
     }
   },
 
+  async created(){
+    await this.loadPosts()
+  },
+
   methods:{
+    unwrapPayload(response){
+      const code = response?.code
+      const normalizedCode = code === undefined || code === null ? null : String(code)
+      const isBusinessSuccess =
+        normalizedCode === null ||
+        normalizedCode === "1" ||
+        normalizedCode === "200" ||
+        response?.success === true
+
+      if (!isBusinessSuccess) {
+        throw new Error(response?.message || response?.msg || "请求失败")
+      }
+
+      if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+        return response.data
+      }
+
+      return response
+    },
+
+    extractList(payload){
+      if (Array.isArray(payload)) return payload
+      if (Array.isArray(payload?.list)) return payload.list
+      if (Array.isArray(payload?.records)) return payload.records
+      if (Array.isArray(payload?.items)) return payload.items
+      if (Array.isArray(payload?.rows)) return payload.rows
+      if (Array.isArray(payload?.content)) return payload.content
+      if (Array.isArray(payload?.data)) return payload.data
+      if (Array.isArray(payload?.posts)) return payload.posts
+      return []
+    },
+
+    toArray(value){
+      if (Array.isArray(value)) return value
+
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value)
+          if (Array.isArray(parsed)) return parsed
+        } catch (error) {
+          // 非 JSON 字符串按逗号拆分
+        }
+
+        return value
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean)
+      }
+
+      return []
+    },
+
+    toBooleanLikeFlag(value){
+      if (typeof value === "boolean") return value
+      if (typeof value === "number") return value === 1
+
+      if (typeof value === "string") {
+        const text = value.trim().toLowerCase()
+        if (["1", "true", "yes", "y", "liked", "已点赞"].includes(text)) return true
+        if (["0", "false", "no", "n", "unliked", "未点赞", ""].includes(text)) return false
+      }
+
+      return false
+    },
+
+    resolveLiked(post){
+      const directFlag = post.liked ?? post.isLiked ?? post.is_liked ?? post.hasLiked ?? post.likeStatus
+      if (directFlag !== undefined && directFlag !== null) {
+        return this.toBooleanLikeFlag(directFlag)
+      }
+
+      const currentUserId = String(localStorage.getItem("userId") || "")
+      if (!currentUserId) return false
+
+      const likedUserIds = this.toArray(post.likedUserIds || post.likeUserIds || post.likerIds)
+      return likedUserIds.map(item => String(item)).includes(currentUserId)
+    },
+
+    mapPost(post){
+      if (!post || typeof post !== "object") return null
+
+      return {
+        id: post.id ?? post.postId ?? post.post_id,
+        name: post.name || post.username || post.userName || post.authorName || "匿名用户",
+        time: post.time || post.createTime || post.createdAt || post.created_at || "刚刚",
+        avatar: post.avatar || post.userAvatar || post.authorAvatar || "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
+        images: this.toArray(post.images || post.imageList || post.image_urls || post.imageUrls),
+        content: post.content || post.text || "",
+        tags: this.toArray(post.tags || post.tagList || post.tagNames),
+        likes: Number(post.likes ?? post.likeCount ?? post.like_count ?? 0),
+        comments: Number(post.comments ?? post.commentCount ?? post.comment_count ?? 0),
+        liked: this.resolveLiked(post)
+      }
+    },
+
+    isLiking(postId){
+      return this.likingPostIds.includes(postId)
+    },
+
+    async handleToggleLike(post){
+      const postId = post?.id
+      if (!postId || this.isLiking(postId)) return
+
+      const target = this.posts.find(item => item.id === postId)
+      if (!target) return
+
+      const previousLiked = !!target.liked
+      const previousLikes = Number(target.likes || 0)
+
+      target.liked = !previousLiked
+      target.likes = previousLiked
+        ? Math.max(0, previousLikes - 1)
+        : previousLikes + 1
+
+      this.likingPostIds.push(postId)
+
+      try {
+        const response = previousLiked
+          ? await unlikePost(postId)
+          : await likePost(postId)
+        this.unwrapPayload(response)
+      } catch (error) {
+        target.liked = previousLiked
+        target.likes = previousLikes
+        const msg = error?.response?.data?.message || error?.message || "点赞操作失败"
+        this.$message.error(msg)
+      } finally {
+        this.likingPostIds = this.likingPostIds.filter(id => id !== postId)
+      }
+    },
+
+    async loadPosts(){
+      this.loading = true
+
+      try {
+        const response = await getPosts({ page: 1, pageSize: 20 })
+        const payload = this.unwrapPayload(response)
+
+        this.posts = this.extractList(payload)
+          .map(item => this.mapPost(item))
+          .filter(Boolean)
+      } catch (error) {
+        const msg = error?.response?.data?.message || error?.message || "加载动态失败"
+        this.$message.error(msg)
+        this.posts = []
+      } finally {
+        this.loading = false
+      }
+    },
 
     handleSearch(keyword){
       console.log("搜索:",keyword)
@@ -209,6 +276,14 @@ export default {
   gap:20px;
 
   margin-bottom:20px;
+}
+
+.tips{
+  padding:18px;
+  border-radius:12px;
+  background:#ffffff;
+  color:#707070;
+  font-size:14px;
 }
 
 
