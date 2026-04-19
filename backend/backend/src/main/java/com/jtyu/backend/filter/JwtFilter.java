@@ -42,6 +42,13 @@ public class JwtFilter implements Filter {
         String method = request.getMethod();
         System.out.println("JwtFilter 拦截到请求: " + method + " " + uri);
 
+        // 放行静态资源（图片）
+        if (uri.startsWith("/uploads/")) {
+            System.out.println("放行静态资源: " + uri);
+            chain.doFilter(request, response);
+            return;
+        }
+
         // 3. 放行的路径列表（不需要 token）
         if ("/users/login".equals(uri) ||
                 "/users/register".equals(uri)) {

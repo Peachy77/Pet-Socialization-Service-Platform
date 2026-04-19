@@ -3,7 +3,7 @@
     <!-- 顶部 -->
     <div class="header">
       <button class="back-btn" @click="goBack">
-        <span>←</span>
+        <span>‹</span>
       </button>
       <div class="user-info">
         <img :src="conversation.avatar" class="avatar" />

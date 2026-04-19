@@ -8,13 +8,23 @@
 
 		<div class="register-card">
 			<h2 class="welcome">创建账号</h2>
+	
 
 			<div class="form-item">
 				<label>邮箱</label>
 				<input
 					type="text"
 					v-model="form.account"
-					placeholder="请输入邮箱"
+					placeholder="请输入邮箱作为您的登录账号"
+				/>
+			</div>
+
+			<div class="form-item">
+				<label>用户名</label>
+				<input
+					type="text"
+					v-model="form.username"
+					placeholder="请输入用户名"
 				/>
 			</div>
 
@@ -57,6 +67,7 @@ export default {
 	data() {
 		return {
 			form: {
+				username: "",
 				account: "",
 				password: "",
 				confirmPassword: ""
@@ -67,7 +78,7 @@ export default {
 
 	methods: {
 		async handleRegister() {
-			if (!this.form.account || !this.form.password || !this.form.confirmPassword) {
+			if (!this.form.username || !this.form.account || !this.form.password || !this.form.confirmPassword) {
 				this.$message.error("请完整填写注册信息");
 				return;
 			}
@@ -80,15 +91,29 @@ export default {
 			try {
 				this.loading = true;
 
-				await register({
-					account: this.form.account,
+				const res = await register({
+					email: this.form.account,
+					username: this.form.username,
 					password: this.form.password
 				});
+
+				const code = res?.code;
+				const normalizedCode = code === undefined || code === null ? null : String(code);
+				const isBusinessSuccess =
+					normalizedCode === null ||
+					normalizedCode === "0" ||
+					normalizedCode === "1" ||
+					normalizedCode === "200" ||
+					res?.success === true;
+
+				if (!isBusinessSuccess) {
+					throw new Error(res?.message || res?.msg || "注册失败");
+				}
 
 				this.$message.success("注册成功，请登录");
 				this.$router.push("/");
 			} catch (error) {
-				const msg = error?.response?.data?.message || "注册失败";
+				const msg = error?.message || error?.response?.data?.message || "注册失败";
 				this.$message.error(msg);
 			} finally {
 				this.loading = false;

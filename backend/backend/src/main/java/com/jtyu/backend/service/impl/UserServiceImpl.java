@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -28,6 +29,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private AppointmentOrderMapper appointmentOrderMapper;
+
+    @Autowired
+    private LikeMapper likeMapper;
 
     //private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -189,10 +193,27 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Map<String, Object> getUserPosts(Integer userId, Integer page, Integer pageSize) {
+    public Map<String, Object> getUserPosts(Integer userId, Integer currentUserId,Integer page, Integer pageSize) {
         int offset = (page - 1) * pageSize;
         List<Map<String, Object>> list = postMapper.selectByUserId(userId, offset, pageSize);
         Long total = postMapper.countByUserId(userId);
+
+        if (currentUserId != null && !list.isEmpty()) {
+            List<Integer> postIds = list.stream()
+                    .map(item -> (Integer) item.get("post_id"))
+                    .collect(Collectors.toList());
+            List<Integer> likedIds = likeMapper.selectLikedPostIds(currentUserId, postIds);
+            for (Map<String, Object> post : list) {
+                boolean liked = likedIds.contains(post.get("post_id"));
+                post.put("isLiked", liked);
+                post.put("is_liked", liked);
+            }
+        } else {
+            for (Map<String, Object> post : list) {
+                post.put("isLiked", false);
+                post.put("is_liked", false);
+            }
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", list);

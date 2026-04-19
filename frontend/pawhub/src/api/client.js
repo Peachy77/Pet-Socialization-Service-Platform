@@ -13,7 +13,10 @@ apiClient.interceptors.request.use(config => {
   const token = localStorage.getItem("token");
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    // 后端如果直接从 Authorization 读取 JWT，通常需要原始 token 而不是 Bearer 前缀
+    config.headers.Authorization = "Bearer " + token;
+    // 兼容部分后端拦截器只读取 token 请求头的场景
+    config.headers.token = token;
   }
 
   return config;

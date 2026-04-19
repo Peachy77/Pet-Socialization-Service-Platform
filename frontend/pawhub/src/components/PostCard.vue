@@ -59,12 +59,6 @@ export default {
     post: Object
   },
 
-  data() {
-    return {
-      liked: false
-    }
-  },
-
   computed: {
     // 最多显示两张图片
     showImages() {
@@ -72,15 +66,18 @@ export default {
       return this.post.images.slice(0,2)
     },
 
+    liked() {
+      return !!this.post.liked
+    },
+
     likeCount() {
-      const baseLikes = Number(this.post.likes || 0)
-      return baseLikes + (this.liked ? 1 : 0)
+      return Number(this.post.likes || 0)
     }
   },
 
   methods: {
     toggleLike() {
-      this.liked = !this.liked
+      this.$emit("toggle-like", this.post)
     },
 
     openDetail() {
