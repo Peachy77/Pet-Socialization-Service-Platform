@@ -75,13 +75,13 @@ public class UserServiceImpl implements UserService {
         user.setEmail(email);
         user.setUsername(username);
         user.setPassword(encodedPassword);
-        user.setAvatar("default.jpg");
+        user.setAvatar("http://localhost:8080/uploads/cat.png");
+        user.setBio("这个人很神秘，什么介绍也没有~");
         user.setFollowerCount(0);
         user.setFollowingCount(0);
 
         int rows = userMapper.insert(user);
         if (rows > 0) {
-            System.out.println("插入后 userId: " + user.getUserId());
             return user;
         }
         return null;
@@ -89,19 +89,61 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Map<String, Object> getUserById(Integer userId) {
-        return userMapper.selectSimpleById(userId);
+        Map<String, Object> user = userMapper.selectSimpleById(userId);
+        if (user != null) {
+            Integer totalLikeCount = getTotalLikeCount(userId);
+            user.put("totalLikeCount", totalLikeCount != null ? totalLikeCount : 0);
+        }
+        return user;
     }
 
     @Override
     public Map<String, Object> getCurrentUser(Integer userId) {
-        return userMapper.selectSimpleById(userId);
+        Map<String, Object> user = userMapper.selectSimpleById(userId);
+        if (user != null) {
+            Integer totalLikeCount = getTotalLikeCount(userId);
+            user.put("totalLikeCount", totalLikeCount != null ? totalLikeCount : 0);
+        }
+        return user;
+    }
+
+    // 添加一个辅助方法，为列表中的用户批量设置 isFollowing
+    private void addIsFollowingToList(List<Map<String, Object>> userList, Integer currentUserId) {
+        if (currentUserId == null || userList == null || userList.isEmpty()) {
+            // 未登录，全部设为 false
+            for (Map<String, Object> user : userList) {
+                user.put("isFollowing", false);
+            }
+            return;
+        }
+
+        // 收集所有用户ID
+        List<Integer> userIds = userList.stream()
+                .map(user -> (Integer) user.get("user_id"))
+                .collect(Collectors.toList());
+
+        if (userIds.isEmpty()) {
+            return;
+        }
+
+        // 批量查询当前用户关注了哪些人
+        List<Integer> followingIds = followMapper.selectFollowingIds(currentUserId, userIds);
+
+        for (Map<String, Object> user : userList) {
+            Integer userId = (Integer) user.get("user_id");
+            boolean isFollowing = followingIds.contains(userId);
+            user.put("isFollowing", isFollowing);
+        }
     }
 
     @Override
-    public Map<String, Object> getUserList(String keyword, Integer page, Integer pageSize) {
+    public Map<String, Object> getUserList(String keyword, Integer page, Integer pageSize, Integer currentUserId) {
         int offset = (page - 1) * pageSize;
         List<Map<String, Object>> list = userMapper.selectList(keyword, offset, pageSize);
         Long total = userMapper.countList(keyword);
+
+        // 添加 isFollowing 字段
+        addIsFollowingToList(list, currentUserId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", list);
@@ -110,6 +152,7 @@ public class UserServiceImpl implements UserService {
         result.put("pageSize", pageSize);
         return result;
     }
+
 
     @Override
     public boolean updateProfile(Integer userId, String username, String avatar, String bio) {
@@ -165,10 +208,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Map<String, Object> getFollowingList(Integer userId, Integer page, Integer pageSize) {
+    public Map<String, Object> getFollowingList(Integer userId, Integer page, Integer pageSize, Integer currentUserId) {
         int offset = (page - 1) * pageSize;
         List<Map<String, Object>> list = userMapper.selectFollowing(userId, offset, pageSize);
         Long total = userMapper.countFollowing(userId);
+
+        // 添加 isFollowing 字段（查看当前用户是否关注了列表中的每个人）
+        addIsFollowingToList(list, currentUserId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", list);
@@ -179,10 +225,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Map<String, Object> getFollowersList(Integer userId, Integer page, Integer pageSize) {
+    public Map<String, Object> getFollowersList(Integer userId, Integer page, Integer pageSize, Integer currentUserId) {
         int offset = (page - 1) * pageSize;
         List<Map<String, Object>> list = userMapper.selectFollowers(userId, offset, pageSize);
         Long total = userMapper.countFollowers(userId);
+
+        // 添加 isFollowing 字段
+        addIsFollowingToList(list, currentUserId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", list);

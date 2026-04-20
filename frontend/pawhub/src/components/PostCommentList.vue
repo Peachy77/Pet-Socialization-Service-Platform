@@ -41,6 +41,9 @@
           <button class="action-btn" @click="toggleReply(comment.id)">
             回复 {{ comment.replyCount }}
           </button>
+          <button v-if="canDelete(comment)" class="action-btn delete-btn" @click="confirmDelete(comment)">
+            🗑
+          </button>
         </div>
 
         <div v-if="activeReplyId === comment.id" class="reply-box">
@@ -70,9 +73,23 @@
               alt="我的头像"
             />
             <div class="reply-preview-content">
-              <div v-if="reply.text">你回复了（{{ reply.targetName || comment.name }}）：{{ reply.text }}</div>
-              <div v-else>你回复了（{{ reply.targetName || comment.name }}）：[图片]</div>
+              <div>
+                {{ replyHeaderText(reply) }} {{ reply.targetName || comment.name }}：{{ reply.content || reply.text || reply.displayText || (reply.image ? "[图片]" : "") }}
+              </div>
               <img v-if="reply.image" :src="reply.image" class="reply-preview-image" alt="回复图片" />
+              <div class="comment-actions reply-actions-row">
+                <button class="action-btn" :class="{ liked: reply.liked }" type="button" @click="onLikeReply(reply)">
+                  <svg viewBox="0 0 24 24" class="heart-icon" aria-hidden="true">
+                    <path
+                      d="M12 21s-7.2-4.7-9.6-9C.6 8.7 2.1 5.2 5.6 5c2.1-.1 3.4 1 4.4 2.2C11 6 12.3 4.9 14.4 5c3.5.2 5 3.7 3.2 7-2.4 4.3-9.6 9-9.6 9z"
+                    />
+                  </svg>
+                  <span>{{ reply.likes }}</span>
+                </button>
+                <button v-if="canDelete(reply)" class="action-btn delete-btn" type="button" @click="confirmDeleteReply(reply)">
+                  🗑
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -93,6 +110,14 @@ export default {
     currentUserAvatar: {
       type: String,
       default: ""
+    },
+    currentUserId: {
+      type: [String, Number],
+      default: ""
+    },
+    currentUserName: {
+      type: String,
+      default: ""
     }
   },
 
@@ -109,12 +134,72 @@ export default {
       this.$emit("like-comment", comment.id)
     },
 
+    onLikeReply(reply) {
+      this.$emit("like-reply", {
+        id: reply.id ?? reply.comment_id,
+        liked: this.toBooleanLikeFlag(reply.liked ?? reply.is_liked),
+        likes: Number(reply.likes ?? reply.like_count ?? 0)
+      })
+    },
+
+    replyHeaderText(reply) {
+      if (reply && (reply.isMine || reply.is_mine || reply.isSelf || reply.is_self)) {
+        return "你回复了"
+      }
+
+      const replyName = String(reply?.name || reply?.username || reply?.userName || reply?.nickname || "").trim()
+      return replyName ? `${replyName} 回复了` : "回复了"
+    },
+
+    canDelete(comment) {
+      if (!comment) return false
+
+      if (comment.isMine || comment.is_mine || comment.isSelf || comment.is_self) {
+        return true
+      }
+
+      const currentUserId = String(this.currentUserId || localStorage.getItem("userId") || "")
+      const commentUserId = String(comment.userId ?? comment.user_id ?? comment.uid ?? comment.userID ?? comment.authorId ?? comment.author_id ?? "")
+
+      if (currentUserId && commentUserId && currentUserId === commentUserId) {
+        return true
+      }
+
+      const currentUserName = String(this.currentUserName || "").trim()
+      const commentName = String(comment.name || comment.username || comment.userName || comment.nickname || "").trim()
+
+      return Boolean(currentUserName && commentName && currentUserName === commentName)
+    },
+
+    confirmDelete(comment) {
+      if (!this.canDelete(comment)) {
+        return
+      }
+
+      if (window.confirm("是否删除该评论？")) {
+        this.$emit("delete-comment", comment)
+      }
+    },
+
+    confirmDeleteReply(reply) {
+      if (!this.canDelete(reply)) {
+        return
+      }
+
+      const replyComment = {
+        ...reply,
+        id: reply.id ?? reply.comment_id,
+        comment_id: reply.comment_id ?? reply.id
+      }
+
+      if (window.confirm("是否删除该回复？")) {
+        this.$emit("delete-comment", replyComment)
+      }
+    },
+
     replyItems(comment) {
       if (Array.isArray(comment.replies)) {
-        return comment.replies.map(reply => ({
-          ...reply,
-          targetName: reply.targetName || comment.name
-        }))
+        return comment.replies.map(reply => this.normalizeReplyItem(reply, comment.name))
       }
 
       if (comment.lastReply) {
@@ -122,6 +207,57 @@ export default {
           text: comment.lastReply,
           targetName: comment.name
         }]
+      }
+
+      return []
+    },
+
+    normalizeReplyItem(reply, fallbackTargetName) {
+      const replyImages = this.parseJsonReplyImages(reply.images || reply.imageList || reply.image_urls || reply.imageUrls)
+      const text = String(reply.text || reply.content || reply.comment || "").trim()
+
+      return {
+        ...reply,
+        id: reply.id ?? reply.comment_id,
+        comment_id: reply.comment_id ?? reply.id,
+        content: reply.content || text,
+        text,
+        displayText: text,
+        image: reply.image || replyImages[0] || "",
+        targetName: reply.targetName || fallbackTargetName || "",
+        avatar: reply.avatar || reply.userAvatar || reply.authorAvatar || "",
+        likes: Number(reply.likes ?? reply.like_count ?? 0),
+        liked: this.toBooleanLikeFlag(reply.liked ?? reply.is_liked ?? reply.likeStatus ?? reply.hasLiked),
+        userId: String(reply.userId ?? reply.user_id ?? reply.uid ?? reply.userID ?? reply.authorId ?? reply.author_id ?? ""),
+        name: reply.name || reply.username || reply.userName || reply.nickname || "",
+        isMine: Boolean(reply.isMine || reply.is_mine || reply.isSelf || reply.is_self)
+      }
+    },
+
+    toBooleanLikeFlag(value) {
+      if (typeof value === "boolean") return value
+      if (typeof value === "number") return value === 1
+
+      if (typeof value === "string") {
+        const text = value.trim().toLowerCase()
+        if (["1", "true", "yes", "y", "liked", "已点赞"].includes(text)) return true
+        if (["0", "false", "no", "n", "unliked", "未点赞", ""].includes(text)) return false
+      }
+
+      return false
+    },
+
+    parseJsonReplyImages(value) {
+      if (!value) return []
+      if (Array.isArray(value)) return value
+
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value)
+          return Array.isArray(parsed) ? parsed : []
+        } catch {
+          return value.split(",").map(item => item.trim()).filter(Boolean)
+        }
       }
 
       return []
@@ -294,6 +430,13 @@ export default {
   stroke: #ff4d5a;
 }
 
+.delete-btn {
+  color: #8e4b4b;
+  background: #f6ecec;
+  min-width: 28px;
+  justify-content: center;
+}
+
 .comment-image-wrap {
   margin-top: 10px;
 }
@@ -404,6 +547,10 @@ export default {
 .reply-preview-content {
   flex: 1;
   min-width: 0;
+}
+
+.reply-actions-row {
+  margin-top: 6px;
 }
 
 .reply-preview-image {

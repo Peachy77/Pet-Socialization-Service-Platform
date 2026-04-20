@@ -62,22 +62,14 @@ public class JwtFilter implements Filter {
         // 4. 获取请求头中的 token（前端用 Authorization: Bearer xxx 格式）
         String authHeader = request.getHeader("Authorization");
         String token = null;
-//
-//        if (StringUtils.hasLength(authHeader) && authHeader.startsWith("Bearer ")) {
-//            token = authHeader.substring(7);
-//        }
-//
-//        // 也兼容直接传 token 头的方式
-//        if (!StringUtils.hasLength(token)) {
-//            token = request.getHeader("token");
-//        }
 
         if (StringUtils.hasLength(authHeader) && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-            // 去掉可能存在的引号
-            if (token != null && token.startsWith("\"") && token.endsWith("\"")) {
-                token = token.substring(1, token.length() - 1);
-            }
+        }
+
+        // 也兼容直接传 token 头的方式
+        if (!StringUtils.hasLength(token)) {
+            token = request.getHeader("token");
         }
 
         System.out.println("收到的 token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
@@ -100,7 +92,6 @@ public class JwtFilter implements Filter {
             System.out.println("token 解析成功，userId: " + userId);
             // 将 userId 存入 request 属性，供 Controller 使用
             request.setAttribute("currentUserId", userId);
-            System.out.println("设置 currentUserId: " + userId);
         } catch (Exception e) {
             System.out.println("token 解析失败: " + e.getMessage());
             e.printStackTrace();

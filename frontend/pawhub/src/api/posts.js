@@ -78,6 +78,11 @@ export function unlikeComment(postId, commentId) {
   return apiClient.delete(`/posts/${postId}/comments/${commentId}/like`);
 }
 
+// 删除评论
+export function deleteComment(postId, commentId) {
+  return apiClient.delete(`/posts/${postId}/comments/${commentId}`);
+}
+
 // 回复评论
 // data 建议字段：content
 export function replyComment(postId, commentId, data) {

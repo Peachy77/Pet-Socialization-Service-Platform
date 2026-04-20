@@ -19,12 +19,13 @@
     <div class="message-area" ref="messageArea">
       <div 
         v-for="(msg, idx) in messages" 
-        :key="idx"
+        :key="msg.id || idx"
         :class="['message-bubble', msg.isSent ? 'sent' : 'received']"
       >
         <img v-if="!msg.isSent" :src="conversation.avatar" class="bubble-avatar" />
         <div class="bubble-content">{{ msg.text }}</div>
         <div class="bubble-time">{{ msg.time }}</div>
+        <img v-if="msg.isSent" :src="currentUser.avatar" class="bubble-avatar" />
       </div>
     </div>
 
@@ -42,208 +43,168 @@
 </template>
 
 <script>
-import { createPrivateMessage } from '@/api/messages';
+import { getConversationMessages } from "@/api/messages"
 
 export default {
   name: "MessagesDetailsView",
   data() {
     return {
       inputText: "",
+      loading: false,
+      page: 1,
+      pageSize: 20,
       conversation: {
+        targetUserId: "",
         avatar: "",
         username: "",
         type: ""
       },
+      currentUser: {
+        id: "",
+        username: "我",
+        avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
+      },
       messages: []
-      // messages: [
-      //   {
-      //     text: "你好，最近怎么样？",
-      //     isSent: false,
-      //     time: "10:30"
-      //   },
-      //   {
-      //     text: "很好啊，你呢？",
-      //     isSent: true,
-      //     time: "10:31"
-      //   },
-      //   {
-      //     text: "我也不错，改天约一起玩",
-      //     isSent: false,
-      //     time: "10:32"
-      //   },
-      //   {
-      //     text: "好啊，周末可以吗？",
-      //     isSent: true,
-      //     time: "10:33"
-      //   }
-      // ]
-    }
-  },
-  computed: {
-    currentUserId() {
-      // 从 Vuex 或 localStorage 获取当前用户ID
-      return this.$store.state.user?.userId || JSON.parse(localStorage.getItem("user"))?.userId
     }
   },
   async mounted() {
-    // // 从路由参数获取对话信息
-    // const queryData = this.$route.query
-    // this.conversation = {
-    //   avatar: queryData.avatar || "https://randomuser.me/api/portraits/women/44.jpg",
-    //   username: queryData.username || "用户",
-    //   type: queryData.type || "like"
-    // }
-    // this.scrollToBottom()
-     const queryData = this.$route.query
-    const targetUserId = queryData.userId  // 对方用户ID
-  
-    if (!targetUserId) {
-      console.error("缺少对方用户ID")
-      return
+    this.loadCurrentUser()
+
+    const queryData = this.$route.query || {}
+    this.conversation = {
+      targetUserId: String(queryData.targetUserId || queryData.userId || queryData.id || ""),
+      avatar: queryData.avatar || "https://randomuser.me/api/portraits/women/44.jpg",
+      username: queryData.username || "用户",
+      type: queryData.type || "like"
     }
-  
-    // 获取对方用户信息
-    await this.getUserInfo(targetUserId)
-  
-    // 获取聊天记录
-    await this.loadMessages(targetUserId)
-  
-    // 标记为已读
-    await this.markAsRead(targetUserId)
-  
+
+    await this.loadConversationMessages()
+
     this.scrollToBottom()
-    },
+  },
   methods: {
-     async getUserInfo(userId) {
-    try {
-      const response = await this.$api.getUser(userId)
-      if (response.code === 0) {
-        this.conversation = {
-          avatar: response.data.avatar || "default.jpg",
-          username: response.data.username,
-        }
+    loadCurrentUser() {
+      const stored = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
+
+      this.currentUser = {
+        id: String(localStorage.getItem("userId") || stored?.id || stored?.userId || ""),
+        username: stored?.username || stored?.name || "我",
+        avatar: stored?.avatar || this.currentUser.avatar
       }
-    } catch (error) {
-      console.error("获取用户信息失败:", error)
-    }
-  },
-  
-  // 加载聊天记录
-  async loadMessages(targetUserId) {
-    try {
-      const response = await this.$api.getConversationMessages(targetUserId, {
-        page: 1,
-        pageSize: 50
-      })
-      if (response.code === 0) {
-        // 转换后端数据格式
-        this.messages = response.data.list.map(msg => ({
-          text: msg.content,
-          isSent: msg.sender_id === this.currentUserId,  // 根据当前用户判断
-          time: this.formatTime(msg.create_time),
-          messageId: msg.message_id,
-          images: msg.images
-        }))
+    },
+
+    async loadConversationMessages() {
+      if (!this.conversation.targetUserId) {
+        this.messages = []
+        return
       }
-    } catch (error) {
-      console.error("加载聊天记录失败:", error)
-    }
-  },
-  
-  // 标记会话为已读
-  async markAsRead(targetUserId) {
-    try {
-      await this.$api.markConversationAsRead(targetUserId)
-    } catch (error) {
-      console.error("标记已读失败:", error)
-    }
-  },
-  
-  // 发送消息
-  async sendMessage() {
-    if (!this.inputText.trim()) return
-    
-          const content = this.inputText
-      this.inputText = ""
-      
-      // 先显示消息（乐观更新）
-      const tempMessage = {
-        text: content,
-        isSent: true,
-        time: this.formatTime(new Date()),
-        messageId: null
-      }
-      this.messages.push(tempMessage)
-      this.$nextTick(() => this.scrollToBottom())
-      
+
+      this.loading = true
+
       try {
-        const response = await createPrivateMessage({
-          receiver_id: this.conversation.userId,
-          content: content,
-          images: []
+        const response = await getConversationMessages(this.conversation.targetUserId, {
+          page: this.page,
+          pageSize: this.pageSize
         })
-        
-        if (response.code !== 0) {
-          // 发送失败，移除临时消息并提示
-          this.messages.pop()
-          console.error("发送失败:", response.message)
-        } else {
-          // 更新临时消息的 messageId
-          if (tempMessage.messageId === null && response.data) {
-            tempMessage.messageId = response.data
-          }
-        }
+
+        const payload = this.unwrapPayload(response)
+        const list = this.extractList(payload)
+        this.messages = list.map(item => this.mapMessage(item)).filter(Boolean)
       } catch (error) {
-        this.messages.pop()
-        console.error("发送消息失败:", error)
+        const msg = error?.response?.data?.message || error?.message || "加载聊天记录失败"
+        this.$message?.error?.(msg)
+        this.messages = []
+      } finally {
+        this.loading = false
       }
     },
-    formatTime(dateTime) {
-      const date = new Date(dateTime)
-      const hours = date.getHours().toString().padStart(2, '0')
-      const minutes = date.getMinutes().toString().padStart(2, '0')
-      return `${hours}:${minutes}`
+
+    extractList(payload) {
+      if (Array.isArray(payload)) return payload
+      if (Array.isArray(payload?.list)) return payload.list
+      if (Array.isArray(payload?.records)) return payload.records
+      if (Array.isArray(payload?.items)) return payload.items
+      if (Array.isArray(payload?.rows)) return payload.rows
+      if (Array.isArray(payload?.content)) return payload.content
+      if (Array.isArray(payload?.data)) return payload.data
+      return []
     },
-    
+
+    mapMessage(message) {
+      if (!message || typeof message !== "object") return null
+
+      const senderId = String(message.senderId ?? message.sender_id ?? message.fromUserId ?? message.from_user_id ?? "")
+      const currentUserId = String(this.currentUser.id || "")
+
+      return {
+        id: message.id ?? message.messageId ?? message.message_id ?? `${senderId}-${message.createTime || message.create_time || Date.now()}`,
+        text: message.content || message.text || message.message || "",
+        isSent: Boolean(currentUserId && senderId && currentUserId === senderId),
+        time: this.formatMessageTime(message.createTime || message.create_time || message.time || message.createdAt || message.created_at)
+      }
+    },
+
+    parseDateTime(value) {
+      if (!value) return null
+      const date = value instanceof Date ? value : new Date(value)
+      return Number.isNaN(date.getTime()) ? null : date
+    },
+
+    formatMessageTime(value) {
+      const date = this.parseDateTime(value)
+      if (!date) return ""
+      const hour = String(date.getHours()).padStart(2, "0")
+      const minute = String(date.getMinutes()).padStart(2, "0")
+      return `${hour}:${minute}`
+    },
+
+    unwrapPayload(response) {
+      const code = response?.code
+      const normalizedCode = code === undefined || code === null ? null : String(code)
+      const isBusinessSuccess =
+        normalizedCode === null ||
+        normalizedCode === "0" ||
+        normalizedCode === "1" ||
+        normalizedCode === "200" ||
+        response?.success === true
+
+      if (!isBusinessSuccess) {
+        throw new Error(response?.message || response?.msg || "请求失败")
+      }
+
+      if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+        return response.data
+      }
+
+      return response
+    },
+
     goBack() {
       this.$router.back()
     },
-    
+    sendMessage() {
+      if (!this.inputText.trim()) return
+      
+      const now = new Date()
+      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
+      
+      this.messages.push({
+        text: this.inputText,
+        isSent: true,
+        time: time
+      })
+      
+      this.inputText = ""
+      this.$nextTick(() => {
+        this.scrollToBottom()
+      })
+    },
     scrollToBottom() {
       if (this.$refs.messageArea) {
         this.$refs.messageArea.scrollTop = this.$refs.messageArea.scrollHeight
       }
     }
-  },
-  
-  // // 格式化时间
-  // formatTime(dateTime) {
-  //   const date = new Date(dateTime)
-  //   return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
-  // },
-    // goBack() {
-    //   this.$router.back()
-    // },
-    // sendMessage() {
-    //   if (!this.inputText.trim()) return
-      
-    //   const now = new Date()
-    //   const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
-      
-    //   this.messages.push({
-    //     text: this.inputText,
-    //     isSent: true,
-    //     time: time
-    //   })
-      
-    //   this.inputText = ""
-    //   this.$nextTick(() => {
-    //     this.scrollToBottom()
-    //   })
-    // },
-
-
-  // }
+  }
 }
 </script>
 

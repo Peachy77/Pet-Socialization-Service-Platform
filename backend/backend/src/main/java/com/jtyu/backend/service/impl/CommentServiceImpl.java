@@ -29,15 +29,21 @@ public class CommentServiceImpl implements CommentService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public Map<String, Object> getCommentsByPostId(Integer postId, Integer page, Integer pageSize) {
+    public Map<String, Object> getCommentsByPostId(Integer postId, Integer page, Integer pageSize, Integer currentUserId) {
         int offset = (page - 1) * pageSize;
-        List<Map<String, Object>> list = commentMapper.selectByPostId(postId, offset, pageSize);
+        Integer userId = currentUserId != null ? currentUserId : 0;
+        List<Map<String, Object>> list = commentMapper.selectByPostId(postId, offset, pageSize, userId);
         Long total = commentMapper.countByPostId(postId);
 
-        // 为每个评论获取回复数量和回复列表
+        // 为每个评论获取回复列表和回复数量
         for (Map<String, Object> comment : list) {
             Integer commentId = (Integer) comment.get("comment_id");
+
+            // 调用现有的方法获取回复列表
+            List<Map<String, Object>> replies = getRepliesByCommentId(commentId, currentUserId);
             Long replyCount = commentMapper.countRepliesByParentId(commentId);
+
+            comment.put("replies", replies);
             comment.put("reply_count", replyCount);
         }
 
@@ -50,9 +56,11 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public List<Map<String, Object>> getRepliesByCommentId(Integer commentId) {
-        return commentMapper.selectRepliesByParentId(commentId);
+    public List<Map<String, Object>> getRepliesByCommentId(Integer commentId, Integer currentUserId) {
+        Integer userId = currentUserId != null ? currentUserId : 0;
+        return commentMapper.selectRepliesByParentId(commentId, userId);
     }
+
 
     @Override
     @Transactional

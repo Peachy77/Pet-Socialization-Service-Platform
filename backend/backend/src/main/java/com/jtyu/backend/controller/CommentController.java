@@ -18,9 +18,11 @@ public class CommentController {
     // GET /posts/{postId}/comments - 获取评论列表
     @GetMapping("/posts/{postId}/comments")
     public Result getComments(@PathVariable Integer postId,
+                              @RequestAttribute(required = false) Integer currentUserId,
                               @RequestParam(defaultValue = "1") Integer page,
                               @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = commentService.getCommentsByPostId(postId, page, pageSize);
+        // currentUserId 可能为 null（未登录用户）
+        Map<String, Object> result = commentService.getCommentsByPostId(postId, page, pageSize, currentUserId);
         return Result.success(result);
     }
 

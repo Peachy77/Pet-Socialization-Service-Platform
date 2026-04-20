@@ -93,18 +93,29 @@ public class UserController {
     @GetMapping("/users")
     public Result getUsers(@RequestParam(defaultValue = "1") Integer page,
                            @RequestParam(defaultValue = "20") Integer pageSize,
-                           @RequestParam(required = false) String keyword) {
-        Map<String, Object> result = userService.getUserList(keyword, page, pageSize);
+                           @RequestParam(required = false) String keyword,
+                           @RequestAttribute(required = false) Integer currentUserId) {
+        Map<String, Object> result = userService.getUserList(keyword, page, pageSize, currentUserId);
         return Result.success(result);
     }
 
     // GET /users/{id} - 获取指定用户信息
     @GetMapping("/users/{id}")
-    public Result getUser(@PathVariable Integer id) {
+    public Result getUser(@PathVariable Integer id,
+                          @RequestAttribute(required = false) Integer currentUserId) {
         Map<String, Object> user = userService.getUserById(id);
         if (user == null) {
             return Result.error("用户不存在");
         }
+
+        // 如果当前用户已登录且不是查看自己，则检查是否关注
+        if (currentUserId != null && !currentUserId.equals(id)) {
+            boolean isFollowing = followService.isFollowing(currentUserId, id);
+            user.put("isFollowing", isFollowing);
+        } else {
+            user.put("isFollowing", false);
+        }
+
         return Result.success(user);
     }
 
@@ -160,16 +171,17 @@ public class UserController {
     public Result getFollowing(@RequestAttribute Integer currentUserId,
                                @RequestParam(defaultValue = "1") Integer page,
                                @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = userService.getFollowingList(currentUserId, page, pageSize);
+        Map<String, Object> result = userService.getFollowingList(currentUserId, page, pageSize, currentUserId);
         return Result.success(result);
     }
+
 
     // GET /users/me/followers - 获取我的粉丝列表
     @GetMapping("/users/me/followers")
     public Result getFollowers(@RequestAttribute Integer currentUserId,
                                @RequestParam(defaultValue = "1") Integer page,
                                @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = userService.getFollowersList(currentUserId, page, pageSize);
+        Map<String, Object> result = userService.getFollowersList(currentUserId, page, pageSize, currentUserId);
         return Result.success(result);
     }
 
@@ -233,18 +245,20 @@ public class UserController {
     // GET /users/{userId}/following - 获取指定用户的关注列表
     @GetMapping("/users/{userId}/following")
     public Result getUserFollowing(@PathVariable Integer userId,
+                                   @RequestAttribute(required = false) Integer currentUserId,
                                    @RequestParam(defaultValue = "1") Integer page,
                                    @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = userService.getFollowingList(userId, page, pageSize);
+        Map<String, Object> result = userService.getFollowingList(userId, page, pageSize, currentUserId);
         return Result.success(result);
     }
 
     // GET /users/{userId}/followers - 获取指定用户的粉丝列表
     @GetMapping("/users/{userId}/followers")
     public Result getUserFollowers(@PathVariable Integer userId,
+                                   @RequestAttribute(required = false) Integer currentUserId,
                                    @RequestParam(defaultValue = "1") Integer page,
                                    @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = userService.getFollowersList(userId, page, pageSize);
+        Map<String, Object> result = userService.getFollowersList(userId, page, pageSize, currentUserId);
         return Result.success(result);
     }
 }

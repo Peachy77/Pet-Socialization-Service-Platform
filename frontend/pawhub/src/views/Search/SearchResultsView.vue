@@ -76,6 +76,7 @@
           v-for="user in users"
           :key="user.id"
           :user="user"
+          :following="!!user.following"
           @click="handleUserClick"
           @follow="handleFollow"
         />
@@ -107,7 +108,7 @@ import ServiceCard from "@/components/ServiceCard.vue"
 import UserCard from "@/components/UserCard.vue"
 
 import { searchPosts } from "@/api/posts"
-import { searchUsers } from "@/api/users"
+import { followUser, getMyFollowing, searchUsers, unfollowUser } from "@/api/users"
 import {  searchServices } from "@/api/services"
 
 export default {
@@ -129,6 +130,7 @@ export default {
       activeTab:"post",
 
       loading: false,
+      followingUserIds: [],
       posts: [],
       users: [],
       services: []
@@ -199,11 +201,69 @@ export default {
     }
   },
 
-  created(){
-    this.posts = this.normalizePosts(this.posts)
-  },
-
   methods:{
+    isBusinessSuccess(res) {
+      const code = res?.code
+      const normalizedCode = code === undefined || code === null ? null : String(code)
+      return (
+        normalizedCode === null ||
+        normalizedCode === "0" ||
+        normalizedCode === "1" ||
+        normalizedCode === "200" ||
+        res?.success === true
+      )
+    },
+
+    extractList(payload) {
+      if (Array.isArray(payload)) return payload
+      if (Array.isArray(payload?.list)) return payload.list
+      if (Array.isArray(payload?.records)) return payload.records
+      if (Array.isArray(payload?.items)) return payload.items
+      if (Array.isArray(payload?.rows)) return payload.rows
+      if (Array.isArray(payload?.content)) return payload.content
+      if (Array.isArray(payload?.data)) return payload.data
+      return []
+    },
+
+    toBooleanFollowFlag(value) {
+      if (typeof value === "boolean") return value
+      if (typeof value === "number") return value === 1
+
+      if (typeof value === "string") {
+        const text = value.trim().toLowerCase()
+        if (["1", "true", "yes", "y", "followed", "已关注"].includes(text)) return true
+        if (["0", "false", "no", "n", "unfollowed", "未关注", ""].includes(text)) return false
+      }
+
+      return false
+    },
+
+    extractUserId(user) {
+      if (!user || typeof user !== "object") return null
+      return user.id ?? user.userId ?? user.user_id
+    },
+
+    async loadFollowingIdSet() {
+      try {
+        const response = await getMyFollowing({ page: 1, pageSize: 500 })
+        if (!this.isBusinessSuccess(response)) return new Set()
+
+        const payload = response && Object.prototype.hasOwnProperty.call(response, "data")
+          ? response.data
+          : response
+
+        const list = this.extractList(payload)
+        return new Set(
+          list
+            .map(item => this.extractUserId(item))
+            .filter(id => id !== null && id !== undefined)
+            .map(id => String(id))
+        )
+      } catch (error) {
+        console.warn("[SearchResultsView] 获取关注列表失败，降级使用搜索接口中的关注字段", error)
+        return new Set()
+      }
+    },
 
       async performSearch() {
       if (!this.keyword || !this.keyword.trim()) {
@@ -217,48 +277,59 @@ export default {
 
       try {
         // 并行请求三个接口
-        const [postRes, userRes, serviceRes] = await Promise.all([
+        const [postRes, userRes, serviceRes, followingIdSet] = await Promise.all([
           this.searchPosts(),
           this.searchUsers(),
-          this.searchServices()
+          this.searchServices(),
+          this.loadFollowingIdSet()
         ])
 
+        console.log("[SearchResultsView] 动态接口原始响应", postRes)
+        console.log("[SearchResultsView] 用户接口原始响应", userRes)
+        console.log("[SearchResultsView] 商户接口原始响应", serviceRes)
+
         // 处理动态结果
-        if (postRes && (postRes.code === 1 || postRes.code === 0)) {
-          const list = postRes.data?.list || []
+        if (postRes && this.isBusinessSuccess(postRes)) {
+          const list = this.extractList(postRes?.data ?? postRes)
+          console.log("[SearchResultsView] 动态列表提取结果", {
+            count: list.length,
+            list
+          })
+
           this.posts = list.map(p => ({
-            id: p.post_id,
-            name: p.username,
+            id: p.post_id ?? p.id ?? p.postId,
+            name: p.username || p.name || p.userName || "匿名用户",
             time: this.formatTime(p.create_time),
             avatar: p.avatar || 'default.jpg',
-            images: this.parseJson(p.images),
-            content: p.content,
-            tags: this.parseJson(p.tags),
+            images: this.parseJson(p.images || p.imageList || p.image_urls || p.imageUrls),
+            content: p.content || p.text || "",
+            tags: this.parseJson(p.tags || p.tagList || p.tagNames),
             likes: p.like_count || 0,
             comments: p.comment_count || 0
-          }))
+          })).filter(item => item.id !== undefined && item.id !== null)
         } else {
           this.posts = []
         }
 
         // 处理用户结果
-        if (userRes && (userRes.code === 1 || userRes.code === 0)) {
-          const list = userRes.data?.list || []
+        if (userRes && this.isBusinessSuccess(userRes)) {
+          const list = this.extractList(userRes?.data ?? userRes)
           this.users = list.map(u => ({
-            id: u.user_id,
-            name: u.username,
+            id: this.extractUserId(u),
+            name: u.username || u.name || "未知用户",
             bio: u.bio || '',
-            avatar: u.avatar || 'default.jpg'
-          }))
+            avatar: u.avatar || 'default.jpg',
+            following: this.toBooleanFollowFlag(u.isFollowing ?? u.following ?? u.is_following) || followingIdSet.has(String(this.extractUserId(u)))
+          })).filter(item => item.id !== undefined && item.id !== null)
         } else {
           this.users = []
         }
 
         // 处理商户结果
-        if (serviceRes && (serviceRes.code === 1 || serviceRes.code === 0)) {
-          const list = serviceRes.data?.list || []
+        if (serviceRes && this.isBusinessSuccess(serviceRes)) {
+          const list = this.extractList(serviceRes?.data ?? serviceRes)
           this.services = list.map(s => ({
-            id: s.service_id,
+            id: s.service_id ?? s.id ?? s.serviceId,
             name: s.name,
             address: s.address || '暂无地址',
             rating: s.rating || 0,
@@ -266,7 +337,7 @@ export default {
             tags: this.parseJson(s.tags) || [],
             price: s.price ? `¥${s.price}起` : '暂无',
             image: s.image || (s.images && s.images[0]) || 'https://placekitten.com/200/200'
-          }))
+          })).filter(item => item.id !== undefined && item.id !== null)
         } else {
           this.services = []
         }
@@ -344,9 +415,47 @@ export default {
     },
 
     handleFollow(user){
-      console.log("关注用户", user)
+      this.toggleFollow(user)
 
     },
+
+    async toggleFollow(user) {
+      const targetUserId = user?.id
+      if (!targetUserId || this.followingUserIds.includes(targetUserId)) return
+
+      const currentUser = this.users.find(item => item.id === targetUserId)
+      if (!currentUser) return
+
+      const previousFollowing = !!currentUser.following
+      this.followingUserIds.push(targetUserId)
+
+      try {
+        const response = previousFollowing
+          ? await unfollowUser(targetUserId)
+          : await followUser(targetUserId)
+
+        if (!this.isBusinessSuccess(response)) {
+          throw new Error(response?.message || response?.msg || (previousFollowing ? "取消关注失败" : "关注失败"))
+        }
+
+        this.users = this.users.map(item => (
+          item.id === targetUserId
+            ? { ...item, following: !previousFollowing }
+            : item
+        ))
+      } catch (error) {
+        const msg = error?.response?.data?.message || error?.message || (previousFollowing ? "取消关注失败" : "关注失败")
+        this.$message?.error?.(msg)
+      } finally {
+        this.followingUserIds = this.followingUserIds.filter(id => id !== targetUserId)
+      }
+
+    },
+
+    handleToggleLike(post) {
+      console.log("[SearchResultsView] 点赞切换", post)
+    },
+
         parseJson(value) {
       if (!value) return []
       if (Array.isArray(value)) return value

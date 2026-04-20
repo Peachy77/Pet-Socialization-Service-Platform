@@ -149,7 +149,7 @@ export default {
       return {
         id: post.id ?? post.postId ?? post.post_id,
         name: post.name || post.username || post.userName || post.authorName || "匿名用户",
-        time: post.time || post.createTime || post.createdAt || post.created_at || "刚刚",
+        time: this.formatTime(post.create_time || post.createTime || post.createdAt || post.created_at || post.time),
         avatar: post.avatar || post.userAvatar || post.authorAvatar || "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
         images: this.toArray(post.images || post.imageList || post.image_urls || post.imageUrls),
         content: post.content || post.text || "",
@@ -202,8 +202,23 @@ export default {
       try {
         const response = await getPosts({ page: 1, pageSize: 20 })
         const payload = this.unwrapPayload(response)
+        const list = this.extractList(payload)
 
-        this.posts = this.extractList(payload)
+        console.log("[HomeView] /posts raw response:", response)
+        console.log("[HomeView] /posts unwrapped payload:", payload)
+        console.log("[HomeView] /posts list length:", list.length)
+        console.table(list.slice(0, 10).map(item => ({
+          id: item.id ?? item.postId ?? item.post_id,
+          create_time: item.create_time,
+          createTime: item.createTime,
+          createdAt: item.createdAt,
+          created_at: item.created_at,
+          time: item.time,
+          username: item.username || item.name || item.userName,
+          content: item.content || item.text
+        })))
+
+        this.posts = list
           .map(item => this.mapPost(item))
           .filter(Boolean)
       } catch (error) {
@@ -222,6 +237,58 @@ export default {
         path:"/search",
         query:{q:keyword}
       })
+    },
+
+    formatTime(dateTime){
+      const date = this.parseDateTime(dateTime)
+      if (!date) return "刚刚"
+
+      const now = new Date()
+      const diff = now - date
+      if (diff < 60000) return "刚刚"
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+      return `${Math.floor(diff / 86400000)}天前`
+    },
+
+    parseDateTime(value){
+      if (!value) return null
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value
+      }
+
+      if (typeof value === "number") {
+        const date = new Date(value)
+        return Number.isNaN(date.getTime()) ? null : date
+      }
+
+      const text = String(value).trim()
+      if (!text) return null
+
+      const normalizedText = text.replace(" ", "T")
+      const directDate = new Date(normalizedText)
+      if (!Number.isNaN(directDate.getTime())) {
+        return directDate
+      }
+
+      const match = text.match(
+        /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/
+      )
+
+      if (!match) return null
+
+      const [, year, month, day, hour = "0", minute = "0", second = "0"] = match
+      const date = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      )
+
+      return Number.isNaN(date.getTime()) ? null : date
     }
 
   }
