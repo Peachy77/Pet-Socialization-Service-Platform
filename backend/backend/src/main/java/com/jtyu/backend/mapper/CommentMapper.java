@@ -10,23 +10,44 @@ import java.util.Map;
 public interface CommentMapper {
     // ========== 评论查询 ==========
 
+//    @Select("SELECT c.comment_id, c.user_id, c.post_id, c.parent_comment_id, c.content, c.images, c.create_time, " +
+//            "u.username, u.avatar " +
+//            "FROM comment c JOIN user u ON c.user_id = u.user_id " +
+//            "WHERE c.post_id = #{postId} AND (c.parent_comment_id = 0 OR c.parent_comment_id IS NULL) " +
+//            "ORDER BY c.create_time ASC LIMIT #{offset}, #{pageSize}")
+//    List<Map<String, Object>> selectByPostId(@Param("postId") Integer postId,
+//                                             @Param("offset") Integer offset,
+//                                             @Param("pageSize") Integer pageSize);
+
     @Select("SELECT c.comment_id, c.user_id, c.post_id, c.parent_comment_id, c.content, c.images, c.create_time, " +
-            "u.username, u.avatar " +
+            "u.username, u.avatar, " +
+            "COALESCE((SELECT COUNT(*) FROM comment_like WHERE comment_id = c.comment_id), 0) AS like_count, " +
+            "COALESCE((SELECT COUNT(*) FROM comment_like WHERE comment_id = c.comment_id AND user_id = #{currentUserId}), 0) > 0 AS is_liked " +
             "FROM comment c JOIN user u ON c.user_id = u.user_id " +
             "WHERE c.post_id = #{postId} AND (c.parent_comment_id = 0 OR c.parent_comment_id IS NULL) " +
             "ORDER BY c.create_time ASC LIMIT #{offset}, #{pageSize}")
     List<Map<String, Object>> selectByPostId(@Param("postId") Integer postId,
                                              @Param("offset") Integer offset,
-                                             @Param("pageSize") Integer pageSize);
+                                             @Param("pageSize") Integer pageSize,
+                                             @Param("currentUserId") Integer currentUserId);
 
     @Select("SELECT COUNT(*) FROM comment WHERE post_id = #{postId} AND (parent_comment_id = 0 OR parent_comment_id IS NULL)")
     Long countByPostId(@Param("postId") Integer postId);
 
+//    @Select("SELECT c.comment_id, c.user_id, c.post_id, c.parent_comment_id, c.content, c.images, c.create_time, " +
+//            "u.username, u.avatar " +
+//            "FROM comment c JOIN user u ON c.user_id = u.user_id " +
+//            "WHERE c.parent_comment_id = #{parentCommentId} ORDER BY c.create_time ASC")
+//    List<Map<String, Object>> selectRepliesByParentId(@Param("parentCommentId") Integer parentCommentId);
+
     @Select("SELECT c.comment_id, c.user_id, c.post_id, c.parent_comment_id, c.content, c.images, c.create_time, " +
-            "u.username, u.avatar " +
+            "u.username, u.avatar, " +
+            "COALESCE((SELECT COUNT(*) FROM comment_like WHERE comment_id = c.comment_id), 0) AS like_count, " +
+            "COALESCE((SELECT COUNT(*) FROM comment_like WHERE comment_id = c.comment_id AND user_id = #{currentUserId}), 0) > 0 AS is_liked " +
             "FROM comment c JOIN user u ON c.user_id = u.user_id " +
             "WHERE c.parent_comment_id = #{parentCommentId} ORDER BY c.create_time ASC")
-    List<Map<String, Object>> selectRepliesByParentId(@Param("parentCommentId") Integer parentCommentId);
+    List<Map<String, Object>> selectRepliesByParentId(@Param("parentCommentId") Integer parentCommentId,
+                                                      @Param("currentUserId") Integer currentUserId);
 
     @Select("SELECT COUNT(*) FROM comment WHERE parent_comment_id = #{parentCommentId}")
     Long countRepliesByParentId(@Param("parentCommentId") Integer parentCommentId);

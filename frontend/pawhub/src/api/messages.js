@@ -7,6 +7,12 @@ function getMessageScopedPath(userId, suffix) {
   return userId ? `/users/${userId}/messages/${suffix}` : `/messages/${suffix}`;
 }
 
+// 获取主消息页会话列表（直接调用 /messages 接口）
+// params 常用字段：page、pageSize、keyword
+export function getMessages(params = {}) {
+  return apiClient.get("/messages", { params });
+}
+
 // 获取主消息页会话列表（最近联系人 + 最后一条消息 + 未读数）
 // params 常用字段：page、pageSize、keyword
 // 不传 userId：后端根据 token 返回当前用户会话列表
@@ -38,11 +44,6 @@ export function markConversationAsRead(targetUserId, userId) {
 // 获取当前用户未读私信总数（消息角标）
 export function getUnreadMessageCount(userId) {
   return apiClient.get(getMessageScopedPath(userId, "unread-count"));
-}
-
-// 兼容旧命名：主消息页获取列表
-export function getMessages(params = {}, userId) {
-  return getConversationList(params, userId);
 }
 
 // 兼容旧命名：获取某会话消息

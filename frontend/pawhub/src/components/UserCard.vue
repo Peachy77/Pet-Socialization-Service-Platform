@@ -15,7 +15,6 @@
     <button
       class="follow"
       :class="{ following }"
-      :disabled="following"
       @click.stop="handleAction"
     >
       {{ following ? '已关注' : '关注' }}
@@ -40,7 +39,6 @@ export default {
 
   methods: {
     handleAction() {
-      if (this.following) return
       this.$emit('follow', this.user)
     }
   }
@@ -99,12 +97,12 @@ export default {
 }
 
 .follow.following{
-  background:#eef2ff;
-  color:#6b7280;
+  background:#ddd8f4;
+  color:#5f5877;
   cursor:default;
 }
 
 .follow.following:hover{
-  background:#eef2ff;
+  background:#ddd8f4;
 }
 </style>

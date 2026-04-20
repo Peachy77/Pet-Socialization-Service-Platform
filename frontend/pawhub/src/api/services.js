@@ -1,6 +1,6 @@
-/* eslint-disable no-unused-vars */
 import apiClient from "./client";
 
+// eslint-disable-next-line no-unused-vars
 function normalizeServicePayload(data = {}) {
   return {
     name: data.name || "",
@@ -15,6 +15,7 @@ function normalizeServicePayload(data = {}) {
   };
 }
 
+// eslint-disable-next-line no-unused-vars
 function getUserScopedPath(userId, suffix) {
   if (!suffix) {
     return userId ? `/users/${userId}/services` : "/services";

@@ -24,26 +24,11 @@ apiClient.interceptors.request.use(config => {
 
 // 响应拦截器
 apiClient.interceptors.response.use(
-  response => {
-    // 统一转换：后端 code=1 表示成功，前端期望 code=0
-    if (response.data && response.data.code === 1) {
-      response.data.code = 0;
-    }
-    return response.data;
-  },
+  response => response.data,
   error => {
     console.error("API Error:", error);
     return Promise.reject(error);
   }
 );
-
-// // 响应拦截器
-// apiClient.interceptors.response.use(
-//   response => response.data,
-//   error => {
-//     console.error("API Error:", error);
-//     return Promise.reject(error);
-//   }
-// );
 
 export default apiClient;

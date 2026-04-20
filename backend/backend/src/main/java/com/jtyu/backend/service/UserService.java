@@ -20,7 +20,8 @@ public interface UserService {
     Map<String, Object> getCurrentUser(Integer userId);
 
     // 获取用户列表（分页，支持关键词）
-    Map<String, Object> getUserList(String keyword, Integer page, Integer pageSize);
+    Map<String, Object> getUserList(String keyword, Integer page, Integer pageSize, Integer currentUserId);
+
 
     // 更新用户资料（用户名、头像、简介）
     boolean updateProfile(Integer userId, String username, String avatar, String bio);
@@ -35,10 +36,10 @@ public interface UserService {
     Integer getTotalLikeCount(Integer userId);
 
     // 获取关注列表
-    Map<String, Object> getFollowingList(Integer userId, Integer page, Integer pageSize);
+    Map<String, Object> getFollowingList(Integer userId, Integer page, Integer pageSize, Integer currentUserId);
 
     // 获取粉丝列表
-    Map<String, Object> getFollowersList(Integer userId, Integer page, Integer pageSize);
+    Map<String, Object> getFollowersList(Integer userId, Integer page, Integer pageSize, Integer currentUserId);
 
     // 获取用户的动态列表
     Map<String, Object> getUserPosts(Integer userId,Integer currentUserId, Integer page, Integer pageSize);

@@ -89,6 +89,7 @@
         :key="post.id"
         :post="post"
         @toggle-like="handleToggleLike"
+        @delete-post="handleDeletePost"
       />
     </div>
 
@@ -126,7 +127,7 @@ import ServiceCard from "@/components/ServiceCard.vue"
 import OrderList from "@/components/OrderList.vue"
 import { getCurrentUser, getMyPosts, getMyFavorites, getMyOrders, getUser } from "@/api/users"
 import { cancelOrder as cancelOrderApi } from "@/api/orders"
-import { likePost, unlikePost } from "@/api/posts"
+import { likePost, unlikePost, deletePost } from "@/api/posts"
 import defaultCatAvatar from "@/assets/cat.png"
 
 export default {
@@ -279,7 +280,7 @@ export default {
         bio: this.normalizeBio(user.bio, user.intro),
         followerCount: Number(user.followerCount ?? user.follower_count ?? 0),
         followingCount: Number(user.followingCount ?? user.following_count ?? 0),
-        likesCount: Number(user.likesCount ?? user.likeCount ?? user.likes ?? 0)
+        likesCount: Number(user.totalLikeCount ?? user.likesCount ?? user.likeCount ?? user.likes ?? 0)
       }
     },
 
@@ -325,13 +326,14 @@ export default {
         id: post.id ?? post.postId ?? post.post_id,
         avatar: post.avatar || post.userAvatar || post.authorAvatar || this.profile.avatar || this.getFallbackAvatar(),
         name: post.name || post.username || post.userName || post.authorName || this.profile.username,
-        time: post.time || post.createTime || post.createdAt || post.created_at || "",
+        time: this.formatTime(post.create_time || post.time || post.createTime || post.createdAt || post.created_at),
         images,
         content: post.content || post.text || "",
         tags,
         likes: Number(post.likes ?? post.likeCount ?? post.like_count ?? 0),
         comments: Number(post.comments ?? post.commentCount ?? post.comment_count ?? 0),
-        liked: this.resolveLiked(post)
+        liked: this.resolveLiked(post),
+        isMine: true
       }
     },
 
@@ -410,8 +412,8 @@ export default {
 
         const [postsResult, favoritesResult, ordersResult] = await Promise.allSettled([
           getMyPosts(),
-          getMyFavorites(),
-          getMyOrders()
+          getMyFavorites({ page: 1, pageSize: 20 }),
+          getMyOrders({ page: 1, pageSize: 20 })
         ])
 
         const postsPayload = postsResult.status === "fulfilled"
@@ -479,6 +481,7 @@ export default {
       this.$router.push({
         name:"orderDetail",
         query:{
+          orderId: order?.id,
           order: encodeURIComponent(JSON.stringify(order))
         }
       })
@@ -527,8 +530,78 @@ export default {
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
     },
 
+    parseDateTime(value){
+      if (!value) return null
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value
+      }
+
+      if (typeof value === "number") {
+        const date = new Date(value)
+        return Number.isNaN(date.getTime()) ? null : date
+      }
+
+      const text = String(value).trim()
+      if (!text) return null
+
+      const normalizedText = text.replace(" ", "T")
+      const directDate = new Date(normalizedText)
+      if (!Number.isNaN(directDate.getTime())) {
+        return directDate
+      }
+
+      const match = text.match(
+        /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/
+      )
+
+      if (!match) return null
+
+      const [, year, month, day, hour = "0", minute = "0", second = "0"] = match
+      const date = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      )
+
+      return Number.isNaN(date.getTime()) ? null : date
+    },
+
+    formatTime(dateTime){
+      const date = this.parseDateTime(dateTime)
+      if (!date) return "刚刚"
+
+      const now = new Date()
+      const diff = now - date
+      if (diff < 60000) return "刚刚"
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+      return `${Math.floor(diff / 86400000)}天前`
+    },
+
     isLiking(postId){
       return this.likingPostIds.includes(postId)
+    },
+
+    async handleDeletePost(post){
+      const postId = post?.id
+      if (!postId) return
+
+      const confirmed = window.confirm("确认删除这条动态吗？")
+      if (!confirmed) return
+
+      try {
+        const response = await deletePost(postId)
+        this.unwrapPayload(response)
+        this.posts = this.posts.filter(item => item.id !== postId)
+        this.$message.success("动态已删除")
+      } catch (error) {
+        const msg = error?.response?.data?.message || error?.message || "删除动态失败"
+        this.$message.error(msg)
+      }
     },
 
     async handleToggleLike(post){

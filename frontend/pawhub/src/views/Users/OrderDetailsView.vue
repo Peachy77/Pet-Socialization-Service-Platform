@@ -74,6 +74,8 @@
 </template>
 
 <script>
+import { getOrderDetail } from "@/api/orders"
+
 export default {
 	name: "OrderDetailsView",
 
@@ -92,20 +94,102 @@ export default {
 		}
 	},
 
-	created() {
+	async created() {
 		const raw = this.$route.query.order
-		if (!raw) return
+		const queryOrderId = this.$route.query.orderId
+		let resolvedOrderId = queryOrderId ? Number(queryOrderId) : null
 
-		try {
-			this.order = JSON.parse(decodeURIComponent(raw))
-			this.applyStoredStatus()
-		} catch (error) {
-			console.error("订单详情解析失败", error)
-			this.order = {}
+		if (raw) {
+			try {
+				this.order = JSON.parse(decodeURIComponent(raw))
+				this.applyStoredStatus()
+				resolvedOrderId = resolvedOrderId || Number(this.order.id)
+			} catch (error) {
+				console.error("订单详情解析失败", error)
+				this.order = {}
+			}
+		}
+
+		if (resolvedOrderId) {
+			await this.loadOrderDetail(resolvedOrderId)
 		}
 	},
 
 	methods: {
+		async loadOrderDetail(orderId) {
+			try {
+				const response = await getOrderDetail(orderId)
+				const payload = this.unwrapPayload(response)
+				const mapped = this.mapOrderDetail(payload)
+				if (mapped) {
+					this.order = {
+						...this.order,
+						...mapped
+					}
+					this.applyStoredStatus()
+				}
+			} catch (error) {
+				const msg = error?.response?.data?.message || error?.message || "加载订单详情失败"
+				this.$message?.error?.(msg)
+			}
+		},
+
+		mapOrderDetail(order) {
+			if (!order || typeof order !== "object") return null
+
+			const normalizedStatus = this.normalizeOrderStatus(order.status)
+
+			return {
+				id: order.id ?? order.orderId ?? order.order_id,
+				status: normalizedStatus,
+				userName: order.userName || order.username || order.user_email || "-",
+				serviceName: order.serviceName || order.project_name || order.projectName || order.service_name || "-",
+				merchantName: order.merchantName || order.storeName || order.shopName || "-",
+				appointmentTime: order.appointmentTime || order.appointment_time || order.time || "-",
+				time: order.time || order.appointmentTime || order.appointment_time || "-",
+				remark: order.remark || "",
+				price: this.normalizePrice(order.price),
+				orderTime: order.orderTime || order.createTime || order.createdAt || order.create_time || "-",
+				updateTime: order.updateTime || order.updatedAt || order.update_time || "-"
+			}
+		},
+
+		normalizePrice(value) {
+			if (value === undefined || value === null || value === "") return "-"
+			const text = String(value)
+			if (text === "-") return "-"
+			return text.startsWith("¥") ? text : `¥${text}`
+		},
+
+		normalizeOrderStatus(status) {
+			const text = String(status || "").toLowerCase()
+			if (["pending", "wait", "waiting", "0", "待服务", "待处理"].includes(text)) return "pending"
+			if (["completed", "done", "finish", "finished", "1", "已完成"].includes(text)) return "completed"
+			if (["cancelled", "canceled", "cancel", "2", "已取消"].includes(text)) return "cancelled"
+			return "pending"
+		},
+
+		unwrapPayload(response) {
+			const code = response?.code
+			const normalizedCode = code === undefined || code === null ? null : String(code)
+			const isBusinessSuccess =
+				normalizedCode === null ||
+				normalizedCode === "0" ||
+				normalizedCode === "1" ||
+				normalizedCode === "200" ||
+				response?.success === true
+
+			if (!isBusinessSuccess) {
+				throw new Error(response?.message || response?.msg || "请求失败")
+			}
+
+			if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+				return response.data
+			}
+
+			return response
+		},
+
 		goBack() {
 			this.$router.back()
 		},

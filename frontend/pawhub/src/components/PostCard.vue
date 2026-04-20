@@ -45,8 +45,9 @@
         </svg>
         <span>{{ likeCount }}</span>
       </div>
-      <div>💬 {{ post.comments }}</div>
-    </div>
+      <div>💬 {{ post.comments }}</div>      <div v-if="post.isMine" class="delete-btn" @click.stop="deletePost">
+        🗑
+      </div>    </div>
 
   </div>
 </template>
@@ -78,6 +79,10 @@ export default {
   methods: {
     toggleLike() {
       this.$emit("toggle-like", this.post)
+    },
+
+    deletePost() {
+      this.$emit("delete-post", this.post)
     },
 
     openDetail() {
@@ -225,5 +230,19 @@ export default {
 .like-btn.liked .heart-icon path{
   fill:#ef4444;
   stroke:#ef4444;
+}
+
+.delete-btn{
+  padding:0;
+  border:none;
+  background:transparent;
+  color:#999;
+  cursor:pointer;
+  font-size:18px;
+  transition:0.2s;
+}
+
+.delete-btn:hover{
+  color:#ef4444;
 }
 </style>

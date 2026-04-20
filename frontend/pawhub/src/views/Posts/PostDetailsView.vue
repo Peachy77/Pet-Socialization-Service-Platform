@@ -21,7 +21,12 @@
 						<div class="author-time">{{ post.time }}</div>
 					</div>
 				</div>
-				<button class="follow-btn" :class="{ active: followed }" @click="toggleFollow">
+				<button
+					v-if="!isOwnAuthor"
+					class="follow-btn"
+					:class="{ active: followed }"
+					@click="toggleFollow"
+				>
 					{{ followed ? "已关注" : "关注" }}
 				</button>
 			</div>
@@ -113,14 +118,22 @@
 		<!-- 有数据 -->
 		<div v-else-if="post" class="content-shell">
 			<div class="author-card">
-				<div class="author-left">
+				<div
+					class="author-left"
+					role="button"
+					tabindex="0"
+					@click="openAuthorProfile"
+					@keydown.enter.prevent="openAuthorProfile"
+				>
 					<img :src="post.avatar" class="avatar" />
 					<div class="author-meta">
 						<div class="author-name">{{ post.name }}</div>
 						<div class="author-time">{{ post.time }}</div>
 					</div>
 				</div>
-				<button class="follow-btn">关注</button>
+				<button v-if="!isOwnAuthor" class="follow-btn" :class="{ active: followed }" @click="toggleFollow">
+					{{ followed ? "已关注" : "关注" }}
+				</button>
 			</div>
 
 			<div v-if="post.images && post.images.length" class="gallery">
@@ -153,7 +166,15 @@
 				</div>
 			</div>
 
-			<PostCommentList :comments="commentList" @like-comment="handleLikeComment" @reply-comment="handleReplyComment" />
+			<PostCommentList
+				:comments="commentList"
+				:current-user-id="currentUser.id"
+				:current-user-name="currentUser.username"
+				@like-comment="handleLikeComment"
+				@like-reply="handleLikeReply"
+				@reply-comment="handleReplyComment"
+				@delete-comment="handleDeleteComment"
+			/>
 		</div>
 
 		<!-- 无数据 -->
@@ -165,20 +186,34 @@
 		<!-- 评论栏（只在有数据时显示） -->
 		<div v-if="post" class="comment-bar">
 			<input 
-				v-model="commentInput" 
-				type="text" 
-				class="input-box" 
+				ref="commentImageInput"
+				type="file"
+				accept="image/*"
+				class="image-input"
+				@change="handleCommentImageChange"
+			/>
+			<button class="attach-btn" @click="triggerCommentImage">＋</button>
+			<textarea
+				v-model.trim="commentDraft"
+				class="input-box"
 				placeholder="写评论..."
-				@keyup.enter="submitComment"
+				rows="1"
 			/>
 			<button class="send-btn" @click="submitComment">➤</button>
+		</div>
+
+		<div v-if="commentImage" class="comment-image-preview">
+			<img :src="commentImage" alt="待发布图片" />
+			<button class="remove-image-btn" @click="clearCommentImage">×</button>
 		</div>
 	</div>
 </template>
 
 <script>
 import PostCommentList from "@/components/PostCommentList.vue"
-import { getPostDetail, likePost, unlikePost, getComments, createComment } from "@/api/posts"
+import { getPostDetail, likePost, unlikePost, getComments, createComment, deleteComment, likeComment, unlikeComment, replyComment } from "@/api/posts"
+import { uploadFile } from "@/api/upload"
+import { followUser, getUser, unfollowUser } from "@/api/users"
 
 export default {
 	name: "PostDetailsView",
@@ -191,50 +226,20 @@ export default {
 		return {
 			liked: false,
 			followed: false,
+			followLoading: false,
 			activeImageIndex: 0,
-			// fallbackPost: {
-			// 	id: 1,
-			// 	name: "柴犬小乖",
-			// 	time: "2小时前",
-			// 	avatar: "https://i.pravatar.cc/100?img=3",
-			// 	images: [
-			// 		"https://images.unsplash.com/photo-1583511655857-d19b40a7a54e",
-			// 		"https://images.unsplash.com/photo-1558788353-f76d92427f16"
-			// 	],
-			// 	content:
-			// 		"今天带我家毛孩子去美容院做了个新造型，超级可爱！推荐大家去试试这家店，服务态度很好，技术也专业。",
-			// 	tags: ["宠物美容", "柴犬", "日常分享"],
-			// 	likes: 234,
-			// 	comments: 45
-			// },
-			// commentList: [
-			// 	{
-			// 		id: 1,
-			// 		name: "猫咪铲屎官",
-			// 		time: "1小时前",
-			// 		avatar: "https://i.pravatar.cc/100?img=5",
-			// 		content: "好可爱！我家猫咪也想去试试。",
-			// 		likes: 12,
-			// 		replyCount: 2,
-			// 		lastReply: "",
-			// 		liked: false
-			// 	},
-			// 	{
-			// 		id: 2,
-			// 		name: "小鱼",
-			// 		time: "刚刚",
-			// 		avatar: "https://i.pravatar.cc/100?img=12",
-			// 		content: "这家店看起来很不错，收藏了。",
-			// 		likes: 6,
-			// 		replyCount: 1,
-			// 		lastReply: "",
-			// 		liked: false
-			// 	}
-			// ]
+			commentDraft: "",
+			commentImage: "",
+			commentImageFile: null,
+			extraCommentCount: 0,
+			currentUser: {
+				id: "",
+				username: "宠物爱好者",
+				avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
+			},
 			loading: true,
 			post: null,
-			commentList: [],
-			commentInput: ""
+			commentList: []
 		}
 	},
 
@@ -243,6 +248,12 @@ export default {
 	},
 
 	computed: {
+		isOwnAuthor() {
+			const currentUserId = String(localStorage.getItem("userId") || this.currentUser.id || "")
+			const authorId = String(this.post?.userId ?? this.post?.user_id ?? this.post?.authorId ?? this.post?.author_id ?? "")
+			return Boolean(currentUserId && authorId && currentUserId === authorId)
+		},
+
 		// post() {
 		// 	const query = this.$route.query || {}
 
@@ -276,35 +287,45 @@ export default {
 		try {
 			// 获取动态详情
 			const res = await getPostDetail(postId)
+			console.log("[PostDetailsView] getPostDetail 原始响应:", res)
+			console.table(res)
+			
 			if (res.code === 1 || res.code === 0) {
 				const data = res.data
+				console.log("[PostDetailsView] 帖子数据详情:", data)
+				console.table(data)
+				
+				const postImages = this.parseJson(data.images).map(item => this.toDisplayImageUrl(item))
 				this.post = {
 					id: data.post_id,
+					userId: data.user_id,
 					name: data.username,
 					time: this.formatTime(data.create_time),
-					avatar: data.avatar || 'default.jpg',
-					images: this.parseJson(data.images),
+					avatar: this.toDisplayImageUrl(data.avatar) || 'default.jpg',
+					images: postImages,
 					content: data.content,
 					tags: this.parseJson(data.tags),
 					likes: data.like_count || 0,
 					comments: data.comment_count || 0
 				}
+				console.log("[PostDetailsView] 处理后的 post 对象:", this.post)
 				this.liked = data.is_liked || false
+
+				if (this.post.userId) {
+					try {
+						const userRes = await getUser(this.post.userId)
+						const userData = this.unwrapPayload(userRes)
+						this.followed = this.toBooleanLikeFlag(userData?.isFollowing ?? userData?.following ?? userData?.is_following)
+					} catch (error) {
+						console.error("[PostDetailsView] 获取作者关注状态失败:", error)
+					}
+				}
 			}
 
 			// 获取评论列表
 			const commentRes = await getComments(postId)
 			if (commentRes.code === 1 || commentRes.code === 0) {
-				this.commentList = (commentRes.data?.list || []).map(c => ({
-					id: c.comment_id,
-					name: c.username,
-					time: this.formatTime(c.create_time),
-					avatar: c.avatar || 'default.jpg',
-					content: c.content,
-					likes: 0,
-					replyCount: 0,
-					liked: false
-				}))
+				this.commentList = (commentRes.data?.list || []).map(c => this.normalizeCommentItem(c))
 			}
 		} catch (error) {
 			console.error('加载失败:', error)
@@ -330,8 +351,26 @@ export default {
 			}
 		},
 
-		toggleFollow() {
-			this.followed = !this.followed
+		async toggleFollow() {
+			const targetUserId = this.post?.userId ?? this.post?.user_id ?? this.post?.authorId ?? this.post?.author_id
+			if (!targetUserId || this.followLoading) return
+
+			const previousFollowed = this.followed
+			this.followed = !previousFollowed
+			this.followLoading = true
+
+			try {
+				const response = previousFollowed
+					? await unfollowUser(targetUserId)
+					: await followUser(targetUserId)
+				this.unwrapPayload(response)
+			} catch (error) {
+				this.followed = previousFollowed
+				const msg = error?.response?.data?.message || error?.message || (previousFollowed ? "取消关注失败" : "关注失败")
+				this.$message.error(msg)
+			} finally {
+				this.followLoading = false
+			}
 		},
 
 		loadCurrentUser() {
@@ -342,6 +381,7 @@ export default {
 			}
 
 			this.currentUser = {
+				id: String(localStorage.getItem("userId") || stored.id || stored.userId || ""),
 				username: stored.username || stored.name || this.currentUser.username,
 				avatar: stored.avatar || this.currentUser.avatar
 			}
@@ -387,69 +427,311 @@ export default {
 				return
 			}
 
-			const reader = new FileReader()
-			reader.onload = () => {
-				this.commentImage = reader.result
-			}
-			reader.readAsDataURL(file)
+			this.commentImageFile = file
+			this.commentImage = URL.createObjectURL(file)
 		},
 
 		clearCommentImage() {
+			if (this.commentImage && this.commentImage.startsWith("blob:")) {
+				URL.revokeObjectURL(this.commentImage)
+			}
 			this.commentImage = ""
+			this.commentImageFile = null
 			if (this.$refs.commentImageInput) {
 				this.$refs.commentImageInput.value = ""
 			}
 		},
 
-		handleLikeComment(commentId) {
-			this.commentList = this.commentList.map(c => {
-				if (c.id !== commentId) return c
-				return { ...c, liked: !c.liked, likes: c.liked ? c.likes - 1 : c.likes + 1 }
-			})
+		normalizeCommentItem(comment) {
+			const commentImages = this.parseJson(comment.images || comment.imageList || comment.image_urls || comment.imageUrls)
+			const currentUserId = String(this.currentUser.id || localStorage.getItem("userId") || "")
+			const commentUserId = String(comment.user_id ?? comment.userId ?? comment.authorId ?? comment.author_id ?? "")
+			const currentUserName = String(this.currentUser.username || "").trim()
+			const commentName = String(comment.username || comment.name || "").trim()
+			const replyList = Array.isArray(comment.replies)
+				? comment.replies.map(reply => this.normalizeReplyItem(reply, comment.username || comment.name || "匿名用户"))
+				: []
+
+			return {
+				id: comment.comment_id ?? comment.id,
+				name: comment.username || comment.name || "匿名用户",
+				time: this.formatTime(comment.create_time || comment.createdAt || comment.created_at),
+				avatar: this.toDisplayImageUrl(comment.avatar || comment.userAvatar || comment.authorAvatar) || 'default.jpg',
+				content: comment.content || "",
+				image: this.toDisplayImageUrl(commentImages[0] || ""),
+				likes: Number(comment.like_count ?? comment.likes ?? 0),
+				liked: this.toBooleanLikeFlag(comment.liked ?? comment.is_liked ?? comment.likeStatus ?? comment.hasLiked),
+				userId: commentUserId,
+				isMine: Boolean(comment.isMine || comment.is_mine || (currentUserId && commentUserId && currentUserId === commentUserId) || (currentUserName && commentName && currentUserName === commentName)),
+				replyCount: Number(comment.reply_count ?? comment.replyCount ?? 0),
+				replies: replyList
+			}
 		},
 
-		handleReplyComment(payload) {
-			this.commentList = this.commentList.map(c => {
-				if (c.id !== payload.id) return c
-				return { ...c, replyCount: c.replyCount + 1, lastReply: payload.text }
-			})
+		normalizeReplyItem(reply, fallbackTargetName) {
+			const replyImages = this.parseJson(reply.images || reply.imageList || reply.image_urls || reply.imageUrls)
+			const text = String(reply.text || reply.content || reply.comment || "").trim()
+			const currentUserId = String(this.currentUser.id || localStorage.getItem("userId") || "")
+			const replyUserId = String(reply.user_id ?? reply.userId ?? reply.uid ?? reply.userID ?? reply.authorId ?? reply.author_id ?? "")
+			const currentUserName = String(this.currentUser.username || "").trim()
+			const replyName = String(reply.username || reply.name || reply.userName || reply.nickname || "").trim()
+
+			return {
+				...reply,
+				id: reply.id ?? reply.comment_id,
+				comment_id: reply.comment_id ?? reply.id,
+				content: reply.content || text,
+				text,
+				displayText: text,
+				image: this.toDisplayImageUrl(reply.image || replyImages[0] || ""),
+				targetName: reply.targetName || fallbackTargetName || "",
+				avatar: this.toDisplayImageUrl(reply.avatar || reply.userAvatar || reply.authorAvatar) || "",
+				likes: Number(reply.likes ?? reply.like_count ?? 0),
+				liked: this.toBooleanLikeFlag(reply.liked ?? reply.is_liked ?? reply.likeStatus ?? reply.hasLiked),
+				userId: replyUserId,
+				name: replyName,
+				isMine: Boolean(reply.isMine || reply.is_mine || reply.isSelf || reply.is_self || (currentUserId && replyUserId && currentUserId === replyUserId) || (currentUserName && replyName && currentUserName === replyName))
+			}
 		},
+
+		toBooleanLikeFlag(value) {
+			if (typeof value === "boolean") return value
+			if (typeof value === "number") return value === 1
+
+			if (typeof value === "string") {
+				const text = value.trim().toLowerCase()
+				if (["1", "true", "yes", "y", "liked", "已点赞"].includes(text)) return true
+				if (["0", "false", "no", "n", "unliked", "未点赞", ""].includes(text)) return false
+			}
+
+			return false
+		},
+
+		async refreshComments() {
+			const commentRes = await getComments(this.post.id, { page: 1, pageSize: 20 })
+			if (commentRes.code === 1 || commentRes.code === 0) {
+				this.commentList = (commentRes.data?.list || []).map(c => this.normalizeCommentItem(c))
+			}
+		},
+
+	resolveUploadedUrl(response) {
+		if (!response) return ""
+
+		if (typeof response === "string") {
+			return this.normalizeUploadPath(response)
+		}
+
+		if (typeof response !== "object") {
+			return ""
+		}
+
+		const candidates = [
+			response.data,
+			response.url,
+			response.path,
+			response.fileUrl,
+			response.filePath
+		]
+
+		for (const candidate of candidates) {
+			if (typeof candidate === "string" && candidate) {
+				return this.normalizeUploadPath(candidate)
+			}
+		}
+
+		if (response.data && typeof response.data === "object") {
+			return this.resolveUploadedUrl(response.data)
+		}
+
+		return ""
+	},
+
+	normalizeUploadPath(path) {
+		if (!path) return ""
+		if (/^https?:\/\//.test(path)) return path
+		if (path.startsWith("/")) return path
+		if (path.startsWith("uploads/")) return `/${path}`
+		if (path.startsWith("uploads\\")) return `/${path.replace(/\\/g, "/")}`
+		return path
+	},
+
+	toDisplayImageUrl(path) {
+		const normalized = this.normalizeUploadPath(path)
+		if (!normalized) return ""
+		if (/^https?:\/\//.test(normalized)) return normalized
+		if (normalized.startsWith("/uploads")) return `http://localhost:8080${normalized}`
+		return normalized
+	},
 
 		async submitComment() {
-	if (!this.commentInput.trim()) return
-	if (!this.post) return
+		const text = String(this.commentDraft || "").trim()
 
-	try {
-		const res = await createComment(this.post.id, {
-			content: this.commentInput,
-			images: []
-		})
-		console.log('发表评论响应:', res)
-
-		if (res.code === 1) {
-			this.commentInput = ""
-
-			// 重新加载评论列表
-			const commentRes = await getComments(this.post.id, { page: 1, pageSize: 20 })
-			if (commentRes.code === 1) {
-				const list = commentRes.data?.list || []
-				this.commentList = list.map(c => ({
-					id: c.comment_id,
-					name: c.username,
-					time: this.formatTime(c.create_time),
-					avatar: c.avatar || 'default.jpg',
-					content: c.content,
-					likes: 0,
-					replyCount: 0,
-					liked: false
-				}))
-			}
-			this.post.comments += 1
+		if (!text && !this.commentImage) {
+			return
 		}
-	} catch (error) {
-		console.error('发表评论失败:', error)
-	}
-},
+
+		if (!this.post) return
+
+		try {
+			let uploadedImageUrl = ""
+
+			// 如果有图片，先上传
+			if (this.commentImageFile) {
+				const uploadRes = await uploadFile(this.commentImageFile)
+				uploadedImageUrl = this.resolveUploadedUrl(uploadRes) || ""
+
+				if (!uploadedImageUrl) {
+					this.$message.error("评论图片上传失败")
+					return
+				}
+			}
+
+			const res = await createComment(this.post.id, {
+				content: text,
+				images: uploadedImageUrl ? [uploadedImageUrl] : []
+			})
+
+			if (res.code === 1 || res.code === 0) {
+				this.commentDraft = ""
+				this.clearCommentImage()
+
+				// 重新加载评论列表
+				const commentRes = await getComments(this.post.id, { page: 1, pageSize: 20 })
+				if (commentRes.code === 1 || commentRes.code === 0) {
+					const list = commentRes.data?.list || []
+					this.commentList = list.map(c => ({
+						id: c.comment_id,
+						name: c.username,
+						time: this.formatTime(c.create_time),
+						avatar: this.toDisplayImageUrl(c.avatar) || 'default.jpg',
+						content: c.content,
+						image: this.toDisplayImageUrl(this.parseJson(c.images)[0] || ""),
+						likes: c.like_count || 0,
+						replyCount: 0,
+						liked: false
+					}))
+				}
+				this.post.comments += 1
+			} else {
+				this.$message.error(res.message || "评论失败")
+			}
+		} catch (error) {
+			console.error('发表评论失败:', error)
+			this.$message.error("发表评论失败")
+		}
+	},
+
+		async handleLikeComment(commentId) {
+			if (!this.post) return
+
+			const target = this.commentList.find(comment => comment.id === commentId)
+			if (!target) return
+
+			const previousLiked = !!target.liked
+			const previousLikes = Number(target.likes || 0)
+
+			try {
+				if (previousLiked) {
+					await unlikeComment(this.post.id, commentId)
+					target.liked = false
+					target.likes = Math.max(0, previousLikes - 1)
+				} else {
+					await likeComment(this.post.id, commentId)
+					target.liked = true
+					target.likes = previousLikes + 1
+				}
+			} catch (error) {
+				target.liked = previousLiked
+				target.likes = previousLikes
+				const msg = error?.response?.data?.message || error?.message || "评论点赞失败"
+				this.$message.error(msg)
+			}
+		},
+
+		async handleLikeReply(payload) {
+			if (!this.post || !payload?.id) return
+
+			const replyId = payload.id
+			let targetReply = null
+
+			for (const comment of this.commentList) {
+				const replies = Array.isArray(comment.replies) ? comment.replies : []
+				targetReply = replies.find(reply => (reply.id ?? reply.comment_id) === replyId)
+				if (targetReply) break
+			}
+
+			if (!targetReply) return
+
+			const previousLiked = !!targetReply.liked
+			const previousLikes = Number(targetReply.likes || 0)
+
+			try {
+				if (previousLiked) {
+					await unlikeComment(this.post.id, replyId)
+					targetReply.liked = false
+					targetReply.likes = Math.max(0, previousLikes - 1)
+				} else {
+					await likeComment(this.post.id, replyId)
+					targetReply.liked = true
+					targetReply.likes = previousLikes + 1
+				}
+			} catch (error) {
+				targetReply.liked = previousLiked
+				targetReply.likes = previousLikes
+				const msg = error?.response?.data?.message || error?.message || "回复点赞失败"
+				this.$message.error(msg)
+			}
+		},
+
+		async handleDeleteComment(comment) {
+			if (!this.post || !comment?.id) return
+
+			try {
+				await deleteComment(this.post.id, comment.id)
+				this.commentList = this.commentList.filter(item => item.id !== comment.id)
+				this.post.comments = Math.max(0, Number(this.post.comments || 0) - 1)
+			} catch (error) {
+				const msg = error?.response?.data?.message || error?.message || "删除评论失败"
+				this.$message.error(msg)
+			}
+		},
+
+		async handleReplyComment(payload) {
+			if (!this.post || !payload?.id) return
+
+			try {
+				let uploadedImageUrl = ""
+
+				if (payload.image) {
+					const blob = await fetch(payload.image).then(response => response.blob())
+					const file = new File([blob], `reply-${Date.now()}.png`, { type: blob.type || "image/png" })
+					const uploadRes = await uploadFile(file)
+					uploadedImageUrl = this.resolveUploadedUrl(uploadRes) || ""
+					if (!uploadedImageUrl) {
+						this.$message.error("回复图片上传失败")
+						return
+					}
+				}
+
+				if (uploadedImageUrl) {
+					await createComment(this.post.id, {
+						content: payload.text || "[图片]",
+						images: [uploadedImageUrl],
+						parentCommentId: payload.id
+					})
+				} else {
+					await replyComment(this.post.id, payload.id, {
+						content: payload.text || ""
+					})
+				}
+
+				await this.refreshComments()
+				this.post.comments = Number(this.post.comments || 0) + 1
+			} catch (error) {
+				const msg = error?.response?.data?.message || error?.message || "回复评论失败"
+				this.$message.error(msg)
+			}
+		},
 
 		handleGalleryScroll(event) {
 			const container = event.target
@@ -474,19 +756,63 @@ export default {
 			return `${Math.floor(diff / 86400000)}天前`
 		},
 
-		openAuthorProfile() {
-			const user = {
-				id: this.post.id,
-				name: this.post.name,
-				avatar: this.post.avatar
+		async openAuthorProfile() {
+			if (!this.post) return
+
+			console.log("[PostDetailsView] openAuthorProfile - 当前 post 对象:", this.post)
+			
+			// 获取作者 ID（兼容多种字段名）
+			const authorId = this.post.userId ?? this.post.user_id ?? this.post.authorId ?? this.post.author_id
+			console.log("[PostDetailsView] 尝试获取的 authorId:", authorId)
+			
+			if (!authorId) {
+				console.error("[PostDetailsView] 无法从 post 对象中获取 userId")
+				this.$message.error("无法获取用户信息")
+				return
 			}
 
-			this.$router.push({
-				name: "userInformation",
-				query: {
-					user: encodeURIComponent(JSON.stringify(user))
-				}
-			})
+			try {
+				console.log("[PostDetailsView] 开始调用 getUser(", authorId, ")")
+				const response = await getUser(authorId)
+				console.log("[PostDetailsView] getUser 返回响应:", response)
+				console.table(response)
+				
+				const userData = this.unwrapPayload(response)
+				console.log("[PostDetailsView] 解析后的 userData:", userData)
+
+				this.$router.push({
+					name: "userInformation",
+					query: {
+						user: encodeURIComponent(JSON.stringify(userData))
+					}
+				})
+			} catch (error) {
+				console.error("[PostDetailsView] getUser 请求失败:", error)
+				console.error("[PostDetailsView] 错误响应:", error?.response?.data)
+				const msg = error?.response?.data?.message || error?.message || "获取用户信息失败"
+				this.$message.error(msg)
+			}
+		},
+
+		unwrapPayload(response) {
+			const code = response?.code
+			const normalizedCode = code === undefined || code === null ? null : String(code)
+			const isBusinessSuccess =
+				normalizedCode === null ||
+				normalizedCode === "0" ||
+				normalizedCode === "1" ||
+				normalizedCode === "200" ||
+				response?.success === true
+
+			if (!isBusinessSuccess) {
+				throw new Error(response?.message || response?.msg || "请求失败")
+			}
+
+			if (response && Object.prototype.hasOwnProperty.call(response, "data")) {
+				return response.data
+			}
+
+			return response
 		},
 
 		goBack() {
@@ -697,8 +1023,8 @@ export default {
 }
 
 .follow-btn.active {
-	background: #ece7ee;
-	color: #5f5468;
+	background: #ddd8f4;
+	color: #5f5877;
 }
 
 .gallery {
@@ -878,7 +1204,10 @@ export default {
 	padding: 16px 20px;
 	border-radius: 28px;
 	background: #fff;
-	color: #b3acb8;
+	color: #222;
+	min-height: 42px;
+	max-height: 120px;
+		color: #b3acb8;
 	font-size: 16px;
 	box-shadow: 0 8px 24px rgba(43, 35, 55, 0.06);
 	border: none;

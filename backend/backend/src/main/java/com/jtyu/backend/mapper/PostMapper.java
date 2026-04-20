@@ -20,7 +20,7 @@ public interface PostMapper {
             "SELECT p.post_id, p.user_id, p.content, p.images, p.tags, p.like_count, p.comment_count, p.create_time, " +
             "u.username, u.avatar " +
             "FROM post p JOIN user u ON p.user_id = u.user_id WHERE 1=1 " +
-            "<if test='keyword != null and keyword != \"\"'> AND p.content LIKE CONCAT('%', #{keyword}, '%')</if>" +
+            "<if test='keyword != null and keyword != \"\"'> AND (p.content LIKE CONCAT('%', #{keyword}, '%') OR p.tags LIKE CONCAT('%', #{keyword}, '%'))</if>" +
             "<if test='tag != null and tag != \"\"'> AND JSON_SEARCH(p.tags, 'one', #{tag}) IS NOT NULL</if>" +
             " ORDER BY p.create_time DESC LIMIT #{offset}, #{pageSize}" +
             "</script>")
@@ -31,7 +31,7 @@ public interface PostMapper {
 
     @Select("<script>" +
             "SELECT COUNT(*) FROM post p WHERE 1=1 " +
-            "<if test='keyword != null and keyword != \"\"'> AND p.content LIKE CONCAT('%', #{keyword}, '%')</if>" +
+            "<if test='keyword != null and keyword != \"\"'> AND (p.content LIKE CONCAT('%', #{keyword}, '%') OR p.tags LIKE CONCAT('%', #{keyword}, '%'))</if>" +
             "<if test='tag != null and tag != \"\"'> AND JSON_SEARCH(p.tags, 'one', #{tag}) IS NOT NULL</if>" +
             "</script>")
     Long countList(@Param("keyword") String keyword, @Param("tag") String tag);

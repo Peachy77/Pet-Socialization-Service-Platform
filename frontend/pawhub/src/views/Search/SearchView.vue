@@ -26,7 +26,7 @@
     </div>
 
       <!-- AI 智能建议（放在搜索栏外面） -->
-    <div v-if="suggestions.length > 0 && keyword" class="ai-suggestions">
+    <div v-if="suggestions.length > 0 && keyword.trim()" class="ai-suggestions">
       <div class="suggestion-title">
         <span>🤖 AI 智能搜索建议</span>
       </div>
@@ -75,7 +75,8 @@ export default {
   data(){
     return{
       keyword: "",
-      suggestions: [], 
+      suggestions: [],
+      timer: null,
       hotTags:[
         "宠物美容",
         "柴犬",
@@ -94,28 +95,80 @@ export default {
     /* 从HomeView带来的搜索关键词 */
     if(this.$route.query.q){
       this.keyword = this.$route.query.q
+      this.onKeywordInput()
     }
     this.loadHotSearchTerms()
   },
 
   methods:{
+    isBusinessSuccess(res) {
+      const code = res?.code
+      const normalizedCode = code === undefined || code === null ? null : String(code)
+      return (
+        normalizedCode === null ||
+        normalizedCode === "0" ||
+        normalizedCode === "1" ||
+        normalizedCode === "200" ||
+        res?.success === true
+      )
+    },
+
+    extractList(payload) {
+      if (Array.isArray(payload)) return payload
+      if (Array.isArray(payload?.list)) return payload.list
+      if (Array.isArray(payload?.records)) return payload.records
+      if (Array.isArray(payload?.items)) return payload.items
+      if (Array.isArray(payload?.rows)) return payload.rows
+      if (Array.isArray(payload?.content)) return payload.content
+      if (Array.isArray(payload?.data)) return payload.data
+      return []
+    },
+
+    extractSuggestions(res) {
+      const payload = res?.data
+      if (Array.isArray(payload?.suggestions)) return payload.suggestions
+      if (Array.isArray(payload?.keywords)) return payload.keywords
+      if (Array.isArray(payload?.items)) return payload.items
+      if (Array.isArray(payload)) return payload
+      return this.extractList(payload)
+    },
 
         // 输入时获取 AI 建议
     async onKeywordInput() {
-      if (this.keyword.length < 2) {
+      const text = String(this.keyword || "").trim()
+      if (text.length < 1) {
         this.suggestions = []
+        console.log("[SearchView] 输入为空，清空AI建议")
         return
       }
       
       clearTimeout(this.timer)
       this.timer = setTimeout(async () => {
         try {
-          const res = await getSearchSuggestions(this.keyword)
-          if (res.code === 0 || res.code === 1) {
-            this.suggestions = res.data?.suggestions || []
+          console.log("[SearchView] 开始请求AI搜索建议", { keyword: text })
+          const res = await getSearchSuggestions(text)
+          console.log("[SearchView] AI搜索建议原始响应", res)
+
+          if (!this.isBusinessSuccess(res)) {
+            console.warn("[SearchView] AI搜索建议响应未通过业务成功判定", {
+              code: res?.code,
+              success: res?.success,
+              message: res?.message || res?.msg
+            })
+            this.suggestions = []
+            return
           }
+
+          const nextSuggestions = this.extractSuggestions(res).filter(Boolean)
+          console.log("[SearchView] AI搜索建议解析结果", {
+            keyword: text,
+            count: nextSuggestions.length,
+            suggestions: nextSuggestions
+          })
+          this.suggestions = nextSuggestions
         } catch (error) {
           console.error('获取建议失败:', error)
+          this.suggestions = []
         }
       }, 500)
     },
@@ -123,11 +176,27 @@ export default {
     // 加载 AI 热门搜索
     async loadHotSearchTerms() {
       try {
+        console.log("[SearchView] 开始请求AI热门搜索")
         const res = await getHotSearchTerms()
-        if (res.code === 0 || res.code === 1) {
-          if (res.data && res.data.length) {
-            this.hotTags = res.data
-          }
+        console.log("[SearchView] AI热门搜索原始响应", res)
+
+        if (!this.isBusinessSuccess(res)) {
+          console.warn("[SearchView] AI热门搜索响应未通过业务成功判定", {
+            code: res?.code,
+            success: res?.success,
+            message: res?.message || res?.msg
+          })
+          return
+        }
+
+        const list = this.extractSuggestions(res)
+        console.log("[SearchView] AI热门搜索解析结果", {
+          count: list.length,
+          list
+        })
+
+        if (list.length) {
+          this.hotTags = list
         }
       } catch (error) {
         console.error('获取热门搜索失败:', error)

@@ -1,4 +1,4 @@
-import apiClient from "./client";
+﻿import apiClient from "./client";
 
 function normalizeAuthPayload(data) {
   const payload = data || {};
@@ -34,7 +34,6 @@ export function getUsers(params = {}) {
 
 // 根据关键词搜索用户列表
 // keyword: 搜索关键词，通常匹配 username 或 email
-// params: 可继续携带 page、pageSize、status、sort 等条件
 export function searchUsers(keyword, params = {}) {
   return apiClient.get("/users", {
     params: {
@@ -61,11 +60,6 @@ export function getCurrentUser() {
   return apiClient.get("/users/me");
 }
 
-// 更新用户
-// 用于编辑指定用户资料，适合管理后台或调试场景
-export function updateUser(id, data) {
-  return apiClient.put(`/users/${id}`, data);
-}
 
 // 更新当前登录用户资料
 // EditView 后续建议优先调用这个接口，后端按 token 更新当前账号对应的数据
@@ -114,4 +108,11 @@ export function getMyFollowing(params = {}, userId) {
 export function getMyFollowers(params = {}, userId) {
   return apiClient.get(getUserScopedPath(userId, "followers"), { params });
 }
+
+
+export function getUserPosts(userId, params = {}) {
+  return apiClient.get(`/users/${userId}/posts`, { params });
+}
+
+
 
