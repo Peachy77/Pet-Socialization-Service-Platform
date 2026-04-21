@@ -1,10 +1,13 @@
 import apiClient from "./client";
 
 function getMessageScopedPath(userId, suffix) {
+  const basePath = "/messages";
+
   if (!suffix) {
-    return userId ? `/users/${userId}/messages` : "/messages";
+    return basePath;
   }
-  return userId ? `/users/${userId}/messages/${suffix}` : `/messages/${suffix}`;
+
+  return `${basePath}/${suffix}`;
 }
 
 // 获取主消息页会话列表（直接调用 /messages 接口）
