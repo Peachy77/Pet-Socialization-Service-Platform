@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import { getMessages } from "@/api/messages"
+import { getConversationList } from "@/api/messages"
 
 export default {
   name: "MessageList",
@@ -105,13 +105,54 @@ export default {
     normalizeMessage(item) {
       if (!item || typeof item !== "object") return null
 
-      const lastMessageTime = item.lastMessageTime || item.last_message_time || item.updatedAt || item.updated_at
+      const otherUserId =
+        item.otherUserId ??
+        item.other_user_id ??
+        item.targetUserId ??
+        item.target_user_id ??
+        item.userId ??
+        item.user_id ??
+        item.contactUserId ??
+        item.contact_user_id ??
+        item.id
+
+      const lastMessageTime =
+        item.lastMessageTime ||
+        item.last_message_time ||
+        item.latestMessageTime ||
+        item.latest_message_time ||
+        item.updatedAt ||
+        item.updated_at ||
+        item.createTime ||
+        item.create_time
+
+      const lastMessage =
+        item.lastMessage ??
+        item.last_message ??
+        item.latestMessage ??
+        item.latest_message ??
+        item.content ??
+        item.text ??
+        "暂无消息"
 
       return {
-        otherUserId: item.otherUserId ?? item.other_user_id,
-        otherUserName: item.otherUserName ?? item.other_user_name ?? item.username ?? "未知用户",
-        otherUserAvatar: item.otherUserAvatar ?? item.other_user_avatar ?? item.avatar ?? "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
-        lastMessage: item.lastMessage ?? item.last_message ?? "暂无消息",
+        otherUserId: otherUserId,
+        otherUserName:
+          item.otherUserName ??
+          item.other_user_name ??
+          item.targetUserName ??
+          item.target_user_name ??
+          item.username ??
+          item.name ??
+          "未知用户",
+        otherUserAvatar:
+          item.otherUserAvatar ??
+          item.other_user_avatar ??
+          item.targetUserAvatar ??
+          item.target_user_avatar ??
+          item.avatar ??
+          "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
+        lastMessage: lastMessage,
         lastMessageTime: lastMessageTime,
         formattedTime: this.formatTime(lastMessageTime),
         unreadCount: Number(item.unreadCount ?? item.unread_count ?? 0),
@@ -123,7 +164,7 @@ export default {
       this.loading = true
 
       try {
-        const response = await getMessages({ page: this.page, pageSize: this.pageSize })
+        const response = await getConversationList({ page: this.page, pageSize: this.pageSize })
         const payload = this.unwrapPayload(response)
 
         this.messages = this.extractList(payload)
@@ -141,10 +182,15 @@ export default {
     },
 
     openChat(otherUserId, otherUserName, otherUserAvatar, type) {
+      if (!otherUserId && otherUserId !== 0) {
+        this.$message?.error?.("会话缺少用户ID，无法打开聊天")
+        return
+      }
+
       this.$router.push({
         name: "messagesDetails",
         query: {
-          userId: otherUserId,
+          targetUserId: String(otherUserId),
           username: otherUserName,
           avatar: otherUserAvatar,
           type: type
@@ -164,7 +210,7 @@ export default {
 /* 每条消息 */
 .message-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 12px 16px;
   border-bottom: 1px solid #eee;
   cursor: pointer;
@@ -219,6 +265,7 @@ export default {
   height: 44px;
   border-radius: 50%;
   margin-right: 12px;
+  margin-top: 2px;
   flex-shrink: 0;
   object-fit: cover;
 }
@@ -230,19 +277,21 @@ export default {
 }
 
 .name {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .text {
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
-  margin-top: 4px;
+  margin-top: 6px;
+  line-height: 1.35;
 }
 
 .time {
-  font-size: 12px;
+  font-size: 11px;
   color: #999;
-  margin-top: 4px;
+  margin-top: 5px;
 }
 </style>
