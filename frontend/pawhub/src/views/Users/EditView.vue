@@ -90,7 +90,6 @@ export default {
 				email: "3153159098@qq.com",
 				bio: "热爱生活，爱宠物 🐾",
 				avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4",
-				password: "123456",
 				oldPassword: "",
 				newPassword: "",
 				confirmPassword: ""
@@ -120,38 +119,6 @@ export default {
 			this.avatarPreview = stored.avatar || this.form.avatar
 		},
 
-		resolveUploadedAvatarUrl(response) {
-			if (!response) return ""
-
-			if (typeof response === "string") {
-				return response
-			}
-
-			if (typeof response !== "object") {
-				return ""
-			}
-
-			const candidates = [
-				response.data,
-				response.url,
-				response.path,
-				response.fileUrl,
-				response.filePath
-			]
-
-			for (const candidate of candidates) {
-				if (typeof candidate === "string" && candidate) {
-					return candidate
-				}
-			}
-
-			if (response.data && typeof response.data === "object") {
-				return this.resolveUploadedAvatarUrl(response.data)
-			}
-
-			return ""
-		},
-
 		handleAvatarChange(event) {
 		const file = event.target.files && event.target.files[0]
 		if (!file) return
@@ -161,12 +128,7 @@ export default {
 
 		// 上传到后端
 		uploadFile(file).then(res => {
-			const url = this.resolveUploadedAvatarUrl(res)  // 兼容后端多层返回结构
-
-			if (!url) {
-				this.$message.warning("头像已上传，但未返回可用地址")
-				return
-			}
+			const url = res.data.data  // 后端返回的 URL
 
 			this.form.avatar = url
 			this.avatarPreview = url
@@ -205,22 +167,10 @@ export default {
 					return
 				}
 
-				if (this.form.oldPassword !== this.form.password) {
-					this.$message.error("旧密码不正确")
-					return
-				}
-
-				if (this.form.newPassword.length < 6) {
-					this.$message.error("新密码长度至少 6 位")
-					return
-				}
-
 				if (this.form.newPassword !== this.form.confirmPassword) {
 					this.$message.error("两次输入的新密码不一致")
 					return
 				}
-
-				this.form.password = this.form.newPassword
 			}
 
 			const profile = {
@@ -229,8 +179,21 @@ export default {
 				bio: this.form.bio
 			}
 
+			if (wantsChangePassword) {
+				profile.oldPassword = this.form.oldPassword
+				profile.newPassword = this.form.newPassword
+				profile.confirmPassword = this.form.confirmPassword
+			}
+
 			updateCurrentUser(profile)
-				.then(() => {
+				.then(res => {
+					const hasBusinessCode = res && Object.prototype.hasOwnProperty.call(res, "code")
+					const isSuccess = !hasBusinessCode || res.code === 1 || res.code === 0
+
+					if (!isSuccess) {
+						throw new Error(res?.message || res?.msg || "资料保存失败")
+					}
+
 					const cachedProfile = {
 						...JSON.parse(localStorage.getItem("pawhub_user_profile") || "{}"),
 						username: this.form.username,
@@ -240,7 +203,10 @@ export default {
 					}
 
 					localStorage.setItem("pawhub_user_profile", JSON.stringify(cachedProfile))
-					this.$message.success("资料已保存")
+					this.form.oldPassword = ""
+					this.form.newPassword = ""
+					this.form.confirmPassword = ""
+					this.$message.success(res?.message || res?.msg || "资料已保存")
 					this.$router.push({ name: "mine" })
 				})
 				.catch(error => {
