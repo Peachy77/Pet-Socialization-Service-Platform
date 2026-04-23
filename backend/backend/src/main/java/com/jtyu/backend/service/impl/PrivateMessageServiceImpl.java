@@ -28,13 +28,13 @@ public class PrivateMessageServiceImpl implements PrivateMessageService {
         List<Map<String, Object>> unreadGroup = privateMessageMapper.selectUnreadGroupBySender(userId);
         Map<Integer, Long> unreadMap = new HashMap<>();
         for (Map<String, Object> item : unreadGroup) {
-            Integer senderId = (Integer) item.get("sender_id");
+            Integer senderId = ((Number) item.get("sender_id")).intValue();
             Long count = (Long) item.get("unreadCount");
             unreadMap.put(senderId, count);
         }
 
         for (Map<String, Object> conv : conversations) {
-            Integer otherUserId = (Integer) conv.get("userId");
+            Integer otherUserId = ((Number) conv.get("userId")).intValue();
             Long unreadCount = unreadMap.getOrDefault(otherUserId, 0L);
             conv.put("unreadCount", unreadCount);
         }

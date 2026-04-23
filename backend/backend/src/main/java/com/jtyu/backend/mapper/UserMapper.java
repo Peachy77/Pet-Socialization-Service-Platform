@@ -21,7 +21,7 @@ public interface UserMapper {
 
     // ========== 用户查询 ==========
 
-    @Select("SELECT user_id, username, email, avatar, bio, follower_count, following_count " +
+    @Select("SELECT user_id, username, email,password, avatar, bio, follower_count, following_count " +
             "FROM user WHERE user_id = #{userId}")
     User selectById(@Param("userId") Integer userId);
 

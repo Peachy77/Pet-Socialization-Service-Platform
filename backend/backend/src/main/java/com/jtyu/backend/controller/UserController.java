@@ -129,7 +129,7 @@ public class UserController {
         return Result.success(user);
     }
 
-    // PUT /users/me - 更新当前用户资料
+    // PUT /users/me - 更新当前用户资料（支持同时修改密码）
     @PutMapping("/users/me")
     public Result updateCurrentUser(@RequestAttribute Integer currentUserId,
                                     @RequestBody Map<String, String> params) {
@@ -137,10 +137,43 @@ public class UserController {
         String avatar = params.get("avatar");
         String bio = params.get("bio");
 
-        boolean success = userService.updateProfile(currentUserId, username, avatar, bio);
-        if (success) {
+        // 检查是否有修改密码的请求
+        String oldPassword = params.get("oldPassword");
+        String newPassword = params.get("newPassword");
+        String confirmPassword = params.get("confirmPassword");
+
+        // 判断是否需要修改密码
+        boolean needChangePassword = (oldPassword != null && !oldPassword.isEmpty()) ||
+                (newPassword != null && !newPassword.isEmpty()) ||
+                (confirmPassword != null && !confirmPassword.isEmpty());
+
+        // 如果提供了部分密码字段但又不完整，返回错误
+        if (needChangePassword) {
+            if (oldPassword == null || oldPassword.isEmpty()) {
+                return Result.error("修改密码需要提供旧密码");
+            }
+            if (newPassword == null || newPassword.isEmpty()) {
+                return Result.error("修改密码需要提供新密码");
+            }
+            if (confirmPassword == null || confirmPassword.isEmpty()) {
+                return Result.error("修改密码需要确认新密码");
+            }
+
+            // 先验证旧密码并修改密码
+            boolean passwordChanged = userService.changePassword(currentUserId, oldPassword, newPassword, confirmPassword);
+            if (!passwordChanged) {
+                return Result.error("密码修改失败，请检查旧密码是否正确或新密码确认是否一致");
+            }
+        }
+        boolean profileUpdated = userService.updateProfile(currentUserId, username, avatar, bio);
+
+        if (profileUpdated) {
+            if (needChangePassword) {
+                return Result.success("资料更新成功，密码已修改");
+            }
             return Result.success("更新成功");
         }
+
         return Result.error("更新失败");
     }
 

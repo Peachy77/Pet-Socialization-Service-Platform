@@ -41,10 +41,11 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             return null;
         }
-
-//        if (!passwordEncoder.matches(password, user.getPassword())) {
-//            return null;
-//        }
+        // 使用 PasswordUtil 验证密码
+        if (!PasswordUtil.matches(password, user.getPassword())) {
+            System.out.println("登录失败：密码错误");
+            return null;
+        }
 
 
         Map<String, Object> result = new HashMap<>();
@@ -168,32 +169,31 @@ public class UserServiceImpl implements UserService {
     public boolean changePassword(Integer userId, String oldPassword, String newPassword, String confirmPassword) {
         // 检查新密码和确认密码是否一致
         if (!newPassword.equals(confirmPassword)) {
+            System.out.println("密码修改失败：新密码和确认密码不一致");
             return false;
         }
 
         // 获取用户当前密码
         User user = userMapper.selectById(userId);
         if (user == null) {
+            System.out.println("密码修改失败：用户不存在，userId=" + userId);
             return false;
         }
 
-//        // 验证旧密码是否正确
-//        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-//            return false;
-//        }
-//
-//        // 加密新密码并更新
-//        String encodedNewPassword = passwordEncoder.encode(newPassword);
-//        return userMapper.updatePassword(userId, encodedNewPassword) > 0;
-//    }
         // 用 PasswordUtil 验证旧密码
         if (!PasswordUtil.matches(oldPassword, user.getPassword())) {
+            System.out.println("密码修改失败：旧密码错误");
             return false;
         }
 
         // 用 PasswordUtil 加密新密码
         String encodedNewPassword = PasswordUtil.encode(newPassword);
-        return userMapper.updatePassword(userId, encodedNewPassword) > 0;
+        System.out.println("新密码加密后: " + encodedNewPassword);
+
+        int result = userMapper.updatePassword(userId, encodedNewPassword);
+        System.out.println("更新密码结果: " + result);
+
+        return result > 0;
     }
 
     @Override
