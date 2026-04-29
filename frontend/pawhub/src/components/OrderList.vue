@@ -27,6 +27,7 @@
             查看详情
           </button>
 
+
           <button
             v-if="order.status === 'pending'"
             class="btn btn-danger"
@@ -41,6 +42,15 @@
             @click="$emit('rebook', order)"
           >
             再次预约
+          </button>
+
+           <button
+            class="btn btn-icon btn-delete"
+            title="删除订单"
+            aria-label="删除订单"
+            @click="$emit('delete-order', order)"
+          >
+            🗑
           </button>
         </div>
       </div>
@@ -173,9 +183,30 @@ export default {
   padding:0 16px;
 }
 
+.btn-icon{
+  min-width:40px;
+  width:40px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  line-height:1;
+}
+
 .btn-outline{
   border-color:#cfd4de;
   color:#1f2937;
+}
+
+.btn-delete{
+  border-color:#d7dde8;
+  color:#64748b;
+}
+
+.btn-delete:hover{
+  border-color:#ffb3b8;
+  color:#ff4d5d;
 }
 
 .btn-danger{

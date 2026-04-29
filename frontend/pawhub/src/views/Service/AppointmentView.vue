@@ -34,7 +34,7 @@ v-for="item in serviceOptions"
 v-for="item in dateOptions"
 :key="item.key"
 :class="['chip', { active: selectedDateKey === item.key }]"
-@click="selectedDateKey = item.key"
+ @click="selectDate(item)"
 >
 {{ item.label }}
 </button>
@@ -74,6 +74,7 @@ placeholder="请输入特殊要求或备注信息..."
 </template>
 
 <script>
+import { createOrder } from "@/api/orders"
 export default {
 name: "AppointmentView",
 
@@ -101,19 +102,28 @@ timeOptions: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18
 computed: {
 merchant() {
 const query = this.$route.query || {}
+console.log("=== merchant 计算属性 ===")
+console.log("路由参数:", query)
+console.log("query.id:", query.id)
 
 return {
 ...this.fallbackMerchant,
+id: query.id ? Number(query.id) : null,
 name: query.name || this.fallbackMerchant.name,
 address: query.address || this.fallbackMerchant.address,
 price: query.price || this.fallbackMerchant.price,
-projects: this.normalizeProjects(query.projects, this.fallbackMerchant.projects)
+servicesOffered: this.normalizeProjects(
+    query.servicesOffered,
+    this.fallbackMerchant.projects)
 }
 },
 
 serviceOptions() {
-if (this.merchant.projects && this.merchant.projects.length) {
-return this.merchant.projects
+if (this.merchant.servicesOffered && this.merchant.servicesOffered.length) {
+return this.merchant.servicesOffered.map(item => ({
+      name: item.name,
+      price: item.price ? `¥${item.price}` : item.price
+    }))
 }
 
 return [
@@ -146,12 +156,20 @@ disabled: slotMinutes <= currentMinutes
 
 mounted() {
 this.initDateOptions()
+console.log("dateOptions:", this.dateOptions)
 
-if (this.serviceOptions.length) {
-this.selectedService = this.serviceOptions[0].name
-}
 
-this.selectedDateKey = this.dateOptions[0]?.key || ""
+  this.$nextTick(() => {
+    console.log("dateOptions after nextTick:", this.dateOptions)
+    if (this.dateOptions && this.dateOptions.length > 0) {
+      this.selectedDateKey = this.dateOptions[0].key
+      console.log("selectedDateKey 设置为:", this.selectedDateKey)
+    }
+
+    if (this.serviceOptions.length) {
+    this.selectedService = this.serviceOptions[0].name
+    }
+  })
 },
 
 watch: {
@@ -173,11 +191,18 @@ for (let i = 0; i < 7; i++) {
 const d = new Date(now)
 d.setDate(now.getDate() + i)
 
-const month = d.getMonth() + 1
-const day = d.getDate()
-const key = `${d.getFullYear()}-${month}-${day}`
+// const month = d.getMonth() + 1
+// const day = d.getDate()
+// const key = `${d.getFullYear()}-${month}-${day}`
 
-let label = `${month}/${day}`
+const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const key = `${year}-${month}-${day}`  // 格式: 2026-04-30 (补零)
+
+
+// let label = `${month}/${day}`
+let label = `${parseInt(month)}/${parseInt(day)}`
 if (i === 0) {
 label = "今天"
 } else if (i === 1) {
@@ -188,6 +213,7 @@ list.push({ key, label })
 }
 
 this.dateOptions = list
+console.log("生成的 dateOptions:", list)
 },
 
 selectTime(slot) {
@@ -196,6 +222,13 @@ return
 }
 
 this.selectedTime = slot.value
+},
+
+selectDate(item) {
+  console.log("点击的日期:", item)
+  console.log("item.key:", item.key)
+  this.selectedDateKey = item.key
+  console.log("selectedDateKey 更新为:", this.selectedDateKey)
 },
 
 normalizeProjects(value, fallback) {
@@ -229,13 +262,41 @@ cancelBooking() {
 this.goBack()
 },
 
-confirmBooking() {
-if (!this.selectedService || !this.selectedDateKey || !this.selectedTime) {
-window.alert("请先选择服务、日期和时间")
-return
-}
+async confirmBooking() {
+    if (!this.selectedService || !this.selectedDateKey || !this.selectedTime) {
+    window.alert("请先选择服务、日期和时间")
+    return
+    }
 
-window.alert("预约成功，商户会尽快与您确认")
+    console.log("预约日期:", this.selectedDateKey)
+    console.log("预约时间:", this.selectedTime)
+
+    const user = JSON.parse(localStorage.getItem("user") || "{}")
+    if (!user.userId) {
+        this.$router.push("/login")
+        return
+    }
+
+     try {
+    const res = await createOrder({
+service_id: this.merchant.id,
+project_name: this.selectedService,
+appointment_date: this.selectedDateKey,
+appointment_time: this.selectedTime,
+remark: this.remark,
+price: this.serviceOptions.find(s => s.name === this.selectedService)?.price.replace('¥', '')
+})
+    if (res.code === 1) {
+      window.alert("预约成功！")
+      // this.$router.push(`/orders/${res.data}`)
+      this.$router.back()
+    } else {
+      window.alert(res.msg || "预约失败")
+    }
+  } catch (error) {
+    console.error("创建订单失败", error)
+    window.alert("预约失败，请稍后重试")
+  }
 }
 }
 }

@@ -11,8 +11,7 @@ import java.util.Map;
 public interface ServiceMerchantMapper {
     // ========== 商户查询 ==========
 
-    @Select("SELECT service_id, name, category, address, images, phone, rating, review_count, " +
-            "business_hours, description, services_offered " +
+    @Select("SELECT  service_id as serviceId, name, category, address, images, phone, rating, review_count as reviewCount, description, services_offered " +
             "FROM service WHERE service_id = #{serviceId}")
     Map<String, Object> selectById(@Param("serviceId") Integer serviceId);
 
@@ -38,6 +37,8 @@ public interface ServiceMerchantMapper {
             "<if test='category != null and category != \"\"'> AND category = #{category}</if>" +
             "</script>")
     Long countList(@Param("keyword") String keyword, @Param("category") String category);
+
+
 
     // ========== 评分更新 ==========
 

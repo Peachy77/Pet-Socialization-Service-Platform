@@ -12,6 +12,20 @@ public class ServiceMerchantController {
     @Autowired
     private ServiceMerchantService serviceMerchantService;
 
+    // 中文 → 英文 转换
+    private String convertCategoryToEn(String chinese) {
+        if (chinese == null) return null;
+        switch (chinese) {
+            case "美容": return "grooming";
+            case "遛狗": return "walking";
+            case "寄养": return "boarding";
+            case "托管": return "sitting";
+            case "医院": return "vet";
+            case "救助": return "emergency";
+            default: return chinese;
+        }
+    }
+
     // GET /services - 获取商户列表
     @GetMapping("/services")
     public Result getServices(@RequestParam(defaultValue = "1") Integer page,
@@ -19,6 +33,8 @@ public class ServiceMerchantController {
                               @RequestParam(required = false) String keyword,
                               @RequestParam(required = false) String type,
                               @RequestAttribute(required = false) Integer currentUserId) {
+        // 转换 category：前端传中文，后端转成英文查数据库
+        String categoryEn = convertCategoryToEn(type);
         Map<String, Object> result = serviceMerchantService.getServiceList(keyword, type, page, pageSize);
         return Result.success(result);
     }

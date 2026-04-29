@@ -19,9 +19,6 @@
       <!-- 评分 -->
       <div class="rating">
         ⭐ {{ service.rating }}
-        <span class="distance">
-          {{ service.distance }}km
-        </span>
       </div>
 
       <!-- 标签 + 预约 -->
@@ -73,7 +70,6 @@ export default {
           image: this.service.image,
           address: this.service.address,
           rating: this.service.rating,
-          distance: this.service.distance,
           tags: JSON.stringify(this.service.tags || []),
           price: this.service.price
         }
@@ -88,11 +84,6 @@ export default {
           name: this.service.name,
           address: this.service.address,
           price: this.service.price,
-          projects: JSON.stringify([
-            { name: "基础洗澡", price: this.service.price || "¥88" },
-            { name: "精致美容", price: "¥158" },
-            { name: "豪华SPA", price: "¥288" }
-          ])
         }
       })
     }

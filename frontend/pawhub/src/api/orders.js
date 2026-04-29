@@ -33,8 +33,9 @@ export function createOrder(data) {
 
 // 获取当前用户订单列表
 // 不传 userId 时走 /users/me/orders，由后端根据 token 识别
-export function getMyOrders(params = {}, userId) {
-  return apiClient.get(getOrderScopedPath(userId, ""), { params });
+export function getMyOrders(params = {}) {
+  return apiClient.get("/orders", { params });
+  // return apiClient.get(getOrderScopedPath(userId, ""), { params });
 }
 
 // 获取订单详情

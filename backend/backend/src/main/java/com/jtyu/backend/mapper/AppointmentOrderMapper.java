@@ -10,8 +10,8 @@ import java.util.Map;
 public interface AppointmentOrderMapper {
     // ========== 订单查询 ==========
 
-    @Select("SELECT o.order_id, o.user_id, o.service_id, o.project_name, o.appointment_time, " +
-            "o.remark, o.status, o.price, o.create_time, o.update_time, " +
+    @Select("SELECT o.order_id as orderId, o.user_id as userId, o.service_id as serviceId, o.project_name as projectName, " +
+            "o.appointment_time as appointmentTime, o.remark, o.status, o.price, o.create_time as createTime, "+
             "s.name as serviceName, s.address as serviceAddress, " +
             "u.username, u.avatar " +
             "FROM `order` o " +
@@ -21,8 +21,8 @@ public interface AppointmentOrderMapper {
     Map<String, Object> selectById(@Param("orderId") Integer orderId);
 
     @Select("<script>" +
-            "SELECT o.order_id, o.user_id, o.service_id, o.project_name, o.appointment_time, " +
-            "o.remark, o.status, o.price, o.create_time, " +
+            "SELECT o.order_id as orderId, o.user_id as userId, o.service_id as serviceId, o.project_name as projectName, o.appointment_time as appointmentTime, " +
+            "o.remark, o.status, o.price, o.create_time as createTime, " +
             "s.name as serviceName, s.address as serviceAddress " +
             "FROM `order` o JOIN service s ON o.service_id = s.service_id " +
             "WHERE o.user_id = #{userId} " +
@@ -50,7 +50,7 @@ public interface AppointmentOrderMapper {
     @Update("UPDATE `order` SET status = #{status} WHERE order_id = #{orderId}")
     int updateStatus(@Param("orderId") Integer orderId, @Param("status") String status);
 
-    @Delete("DELETE FROM `order` WHERE order_id = #{orderId} AND status = 'pending' AND user_id = #{userId}")
+    @Delete("DELETE FROM `order` WHERE order_id = #{orderId} AND user_id = #{userId}")
     int deletePending(@Param("orderId") Integer orderId, @Param("userId") Integer userId);
 
     // 检查订单是否存在
