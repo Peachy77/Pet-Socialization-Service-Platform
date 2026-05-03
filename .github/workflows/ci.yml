@@ -58,7 +58,7 @@ jobs:
       
       - name: Run tests with Maven
         run: mvn clean test
-        working-directory: backend  
+        working-directory: backend/backend 
       
       # 如果 pom.xml 在 backend 目录下
       # TODO: 等 JaCoCo 配置好后再取消注释
