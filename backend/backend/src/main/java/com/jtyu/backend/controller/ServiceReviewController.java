@@ -29,7 +29,7 @@ public class ServiceReviewController {
     public Result getReviewReplies(@PathVariable Integer serviceId,
                                    @PathVariable Integer reviewId,
                                    @RequestAttribute(required = false) Integer currentUserId
-                                   ) {
+    ) {
         List<Map<String, Object>> replies = serviceReviewService.getRepliesByReviewId(reviewId,currentUserId);
         return Result.success(replies);
     }

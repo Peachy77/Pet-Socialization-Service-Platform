@@ -343,17 +343,29 @@ export default {
 
       const projects = this.toArray(service.projects || service.projectNames)
       const tags = this.toArray(service.tags || service.tagList || projects)
+      const images = this.toArray(
+        service.images ||
+        service.imageList ||
+        service.image_urls ||
+        service.imageUrls
+      )
+      const coverImage =
+        images[0] ||
+        service.image ||
+        service.cover ||
+        service.coverImage ||
+        this.getFallbackAvatar()
 
       return {
         id: service.id ?? service.serviceId ?? service.service_id,
         type: service.type || service.category || "pet",
         name: service.name || service.serviceName || "未命名服务",
-        image: service.image || service.cover || service.coverImage || this.getFallbackAvatar(),
+        image: coverImage,
         address: service.address || service.location || "",
         rating: String(service.rating ?? service.score ?? "0"),
         distance: String(service.distance ?? service.distanceKm ?? "0"),
         tags,
-        price: this.normalizePrice(service.price)
+        price: `¥${service.min_price || service.price || 0}起`
       }
     },
 
@@ -433,8 +445,28 @@ export default {
           .map(item => this.mapPost(item))
           .filter(Boolean)
 
-        this.favoriteServices = this.extractList(favoritesPayload)
-          .map(item => this.mapFavorite(item))
+        const favoriteItems = this.extractList(favoritesPayload)
+        console.log("[MineView] 收藏接口原始数据", favoriteItems)
+
+        this.favoriteServices = favoriteItems
+          .map(item => {
+            const mapped = this.mapFavorite(item)
+            console.log("[MineView] 收藏项映射结果", {
+              raw: item,
+              imageCandidates: {
+                image: item?.image,
+                cover: item?.cover,
+                coverImage: item?.coverImage,
+                imageUrl: item?.imageUrl,
+                imageUrls: item?.imageUrls,
+                img: item?.img,
+                pic: item?.pic
+              },
+              mapped
+            })
+
+            return mapped
+          })
           .filter(Boolean)
 
         this.orders = this.extractList(ordersPayload)

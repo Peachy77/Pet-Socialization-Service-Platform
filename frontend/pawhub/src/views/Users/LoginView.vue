@@ -100,7 +100,7 @@ export default {
           username: payload?.username || "",
           avatar: payload?.avatar || ""
       }));
-
+      
         const profile = {
           username: payload?.username || "",
           email: payload?.email || this.form.account,

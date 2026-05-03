@@ -187,7 +187,7 @@ export default {
 
 .price{
   color:#9d8bdc;
-  margin-top:6px;
+  margin-top:-20px;
   font-size:14px;
 }
 

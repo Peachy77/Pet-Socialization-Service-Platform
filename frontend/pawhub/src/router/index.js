@@ -120,4 +120,29 @@ const router = new VueRouter({
   routes
 })
 
+// 全局导航守卫
+router.beforeEach((to, from, next) => {
+  // 检查用户是否已登录（检查localStorage中的userId或token）
+  const userId = localStorage.getItem('userId')
+  const isLoggedIn = !!userId
+
+  // 允许直接访问的路由（无需登录）
+  const allowedWithoutLogin = ['login', 'register']
+  const isPublicRoute = allowedWithoutLogin.includes(to.name)
+
+  if (isLoggedIn) {
+    // 已登录：允许访问所有页面
+    next()
+  } else {
+    // 未登录
+    if (isPublicRoute) {
+      // 访问登录/注册页面：允许
+      next()
+    } else {
+      // 访问其他页面：重定向到登录页
+      next({ name: 'login' })
+    }
+  }
+})
+
 export default router

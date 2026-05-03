@@ -276,7 +276,7 @@ export default {
             address: item.address,
             rating: item.rating,
             tags: item.tags || [],
-            price: item.price || "¥0起"
+            price: `¥${item.min_price || item.price || 0}起`
           }))
           this.total = res.data?.total || 0
           console.log("最终 services:", this.services)
@@ -316,7 +316,9 @@ export default {
         this.$router.replace({
           query: { type: this.getCategoryEn(item) }
         })
-        this.fetchServices()
+            // 切换分类时重置为第一页
+            this.page = 1
+            this.fetchServices()
       },
 
         changeSort(type){
@@ -425,6 +427,39 @@ export default {
 
 .list{
   margin-top:5px;
+}
+
+/* 分页 */
+.pagination{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-top:16px;
+}
+
+.page-btn{
+  background:#9d8bdc;
+  color:#fff;
+  border:none;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+  transition:background 0.15s;
+}
+
+.page-btn:hover{background:#8d7fe3}
+
+.page-btn:disabled{
+  background:#e6e6ea;
+  color:#999;
+  cursor:not-allowed;
+}
+
+.page-info{
+  font-size:14px;
+  color:#666;
 }
 
 </style>

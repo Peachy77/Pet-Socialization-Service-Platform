@@ -16,7 +16,9 @@ public interface ServiceMerchantMapper {
     Map<String, Object> selectById(@Param("serviceId") Integer serviceId);
 
     @Select("<script>" +
-            "SELECT service_id, name, category, address, images, phone, rating, review_count, description " +
+            "SELECT service_id, name, category, address, images, phone, rating, review_count, description, " +
+            "(SELECT MIN(CAST(JSON_EXTRACT(item, '$.price') AS DECIMAL(10,2))) " +
+            "FROM JSON_TABLE(services_offered, '$[*]' COLUMNS(item JSON PATH '$')) AS jt) AS min_price " +
             "FROM service WHERE 1=1 " +
             "<if test='keyword != null and keyword != \"\"'>" +
             "AND (name LIKE CONCAT('%', #{keyword}, '%') OR address LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))" +

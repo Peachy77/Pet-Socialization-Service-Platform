@@ -57,13 +57,6 @@ public class JwtFilter implements Filter {
             return;
         }
 
-//        // 服务相关接口（不需要登录就能看）
-//        if (uri.startsWith("/services") && "GET".equalsIgnoreCase(request.getMethod())) {
-//            System.out.println("放行服务接口: " + uri);
-//            chain.doFilter(request, response);
-//            return;
-//        }
-
         System.out.println("需要验证的路径: " + uri);
 
         // 4. 获取请求头中的 token（前端用 Authorization: Bearer xxx 格式）
