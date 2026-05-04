@@ -95,6 +95,12 @@ export default {
           localStorage.setItem("userId", String(userId));
         }
 
+        localStorage.setItem("user", JSON.stringify({
+          userId: userId,
+          username: payload?.username || "",
+          avatar: payload?.avatar || ""
+      }));
+      
         const profile = {
           username: payload?.username || "",
           email: payload?.email || this.form.account,

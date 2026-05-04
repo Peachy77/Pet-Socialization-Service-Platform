@@ -288,9 +288,43 @@ export default {
     formatMessageTime(value) {
       const date = this.parseDateTime(value)
       if (!date) return ""
+      
       const hour = String(date.getHours()).padStart(2, "0")
       const minute = String(date.getMinutes()).padStart(2, "0")
-      return `${hour}:${minute}`
+      const timeStr = `${hour}:${minute}`
+      
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const messageDate = new Date(date)
+      messageDate.setHours(0, 0, 0, 0)
+      
+      const diffTime = today.getTime() - messageDate.getTime()
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      // 今天：只显示时间
+      if (diffDays === 0) {
+        return timeStr
+      }
+      
+      // 昨天：显示"昨天 HH:mm"
+      if (diffDays === 1) {
+        return `昨天 ${timeStr}`
+      }
+      
+      // 超过一天：显示完整日期时间
+      const month = String(date.getMonth() + 1).padStart(2, "0")
+      const day = String(date.getDate()).padStart(2, "0")
+      const year = date.getFullYear()
+      const currentYear = today.getFullYear()
+      
+      // 同一年内：显示 MM-dd HH:mm
+      if (year === currentYear) {
+        return `${month}-${day} ${timeStr}`
+      }
+      
+      // 不同年份：显示 yyyy-MM-dd HH:mm
+      return `${year}-${month}-${day} ${timeStr}`
     },
 
     unwrapPayload(response) {

@@ -1,9 +1,8 @@
 import { shallowMount } from '@vue/test-utils';
 import FansView from '@/views/Users/FansView.vue';
-import { followUser, getMyFollowers, getMyFollowing, unfollowUser } from '@/api/users';
+import { getMyFollowers, getMyFollowing, unfollowUser } from '@/api/users';
 
 jest.mock('@/api/users', () => ({
-  followUser: jest.fn(),
   getMyFollowers: jest.fn(),
   getMyFollowing: jest.fn(),
   unfollowUser: jest.fn()

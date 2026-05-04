@@ -44,7 +44,6 @@
         <div class="meta-row">
           <span class="meta-item">📍 {{ service.address }}</span>
           <span class="meta-item">⭐ {{ service.rating }}</span>
-          <span class="meta-item">{{ service.distance }}km</span>
         </div>
 
         <div class="tag-list">
@@ -62,9 +61,9 @@
       </div>
 
       <div class="section-card">
-        <div class="section-title">基本项目价格介绍</div>
-        <div class="project-list">
-          <div v-for="item in service.projects" :key="item.name" class="project-item">
+        <div class="section-title">服务项目</div>
+        <div class="project-list" v-if="service.servicesOffered && service.servicesOffered.length">
+          <div v-for="item in service.servicesOffered" :key="item.name" class="project-item">
             <div class="project-name">{{ item.name }}</div>
             <div class="project-price">{{ item.price }}</div>
           </div>
@@ -74,8 +73,12 @@
       <PostCommentList
         :comments="commentList"
         :current-user-avatar="currentUser.avatar"
+        :current-user-id="currentUser.userId"
+        :current-user-name="currentUser.username"
         @like-comment="handleLikeComment"
+        @like-reply="handleLikeReply"
         @reply-comment="handleReplyComment"
+        @delete-comment="handleDeleteComment"
       />
     </div>
 
@@ -106,6 +109,16 @@
 
 <script>
 import PostCommentList from "@/components/PostCommentList.vue"
+import {
+  getServiceDetail,
+  getServiceReviews,
+  getReviewReplies,
+  createServiceReview,
+  addFavorite,
+  removeFavorite
+} from "@/api/services"
+import { likeServiceReview, unlikeServiceReview, deleteServiceReview, replyServiceReview } from "@/api/services"
+import { uploadFile } from "@/api/upload"
 
 export default {
   name: "ServiceDetailView",
@@ -120,142 +133,324 @@ export default {
       favorite: false,
       commentDraft: "",
       commentImage: "",
-      extraCommentCount: 0,
-      currentUser: {
-        username: "宠物爱好者",
-        avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
+      commentImageFile: null,
+      serviceId: null,
+      service: {
+        serviceId: null,
+        name: "",
+        address: "",
+        rating: 0,
+        images: [],
+        tags: [],
+        description: "",
+        servicesOffered: [], 
+        isFavorited: false,
+        intro: "",
+        price: ""
       },
-      fallbackService: {
-        id: 1,
-        type: "美容",
-        name: "爱宠美容工作室",
-        images: [
-          "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7",
-          "https://images.unsplash.com/photo-1583337130417-3346a1be7dee",
-          "https://images.unsplash.com/photo-1507149833265-60c372daea22"
-        ],
-        address: "朝阳区建国路88号",
-        rating: 4.8,
-        distance: 1.2,
-        tags: ["洗澡", "美容", "造型"],
-        price: "¥88起",
-        intro:
-          "这是一家专注宠物美容与护理的门店，环境干净整洁，店员对宠物很耐心，适合洗护、造型和日常护理。",
-        projects: [
-          { name: "洗澡", price: "¥38起" },
-          { name: "剪毛造型", price: "¥88起" },
-          { name: "驱虫护理", price: "¥58起" },
-          { name: "毛发护理", price: "¥68起" }
-        ]
-      },
-      commentList: [
-        {
-          id: 1,
-          name: "猫咪铲屎官",
-          time: "1小时前",
-          avatar: "https://i.pravatar.cc/100?img=5",
-          content: "环境看起来很不错，我家猫也想去试试。",
-          likes: 9,
-          replyCount: 1,
-          replies: [],
-          lastReply: "",
-          liked: false
-        },
-        {
-          id: 2,
-          name: "小鱼",
-          time: "刚刚",
-          avatar: "https://i.pravatar.cc/100?img=12",
-          content: "价格很清楚，打算周末去看看。",
-          likes: 4,
-          replyCount: 2,
-          replies: [],
-          lastReply: "",
-          liked: false
-        }
-      ]
+      commentList: [],
+      currentUser: { userId: null, username: "", avatar: "" }
+      // extraCommentCount: 0,
+      // currentUser: {
+      //   username: "宠物爱好者",
+      //   avatar: "https://images.unsplash.com/photo-1601758123927-1967a3f7f3b4"
+      // },
+      // fallbackService: {
+      //   id: 1,
+      //   type: "美容",
+      //   name: "爱宠美容工作室",
+      //   images: [
+      //     "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7",
+      //     "https://images.unsplash.com/photo-1583337130417-3346a1be7dee",
+      //     "https://images.unsplash.com/photo-1507149833265-60c372daea22"
+      //   ],
+      //   address: "朝阳区建国路88号",
+      //   rating: 4.8,
+      //   distance: 1.2,
+      //   tags: ["洗澡", "美容", "造型"],
+      //   price: "¥88起",
+      //   intro:
+      //     "这是一家专注宠物美容与护理的门店，环境干净整洁，店员对宠物很耐心，适合洗护、造型和日常护理。",
+      //   projects: [
+      //     { name: "洗澡", price: "¥38起" },
+      //     { name: "剪毛造型", price: "¥88起" },
+      //     { name: "驱虫护理", price: "¥58起" },
+      //     { name: "毛发护理", price: "¥68起" }
+      //   ]
+      // },
+      // commentList: [
+      //   {
+      //     id: 1,
+      //     name: "猫咪铲屎官",
+      //     time: "1小时前",
+      //     avatar: "https://i.pravatar.cc/100?img=5",
+      //     content: "环境看起来很不错，我家猫也想去试试。",
+      //     likes: 9,
+      //     replyCount: 1,
+      //     replies: [],
+      //     lastReply: "",
+      //     liked: false
+      //   },
+      //   {
+      //     id: 2,
+      //     name: "小鱼",
+      //     time: "刚刚",
+      //     avatar: "https://i.pravatar.cc/100?img=12",
+      //     content: "价格很清楚，打算周末去看看。",
+      //     likes: 4,
+      //     replyCount: 2,
+      //     replies: [],
+      //     lastReply: "",
+      //     liked: false
+      //   }
+      // ]
     }
   },
 
-	created() {
+	async created() {
 		this.loadCurrentUser()
+    this.serviceId = this.$route.params.id || this.$route.query.id
+     console.log("获取到的 serviceId:", this.serviceId)
+    if (this.serviceId) {
+      await this.loadServiceDetail()
+      await this.loadComments()
+    }
 	},
 
-  computed: {
-    service() {
-      const query = this.$route.query || {}
+  // computed: {
+  //   service() {
+  //     const query = this.$route.query || {}
 
-      return {
-        ...this.fallbackService,
-        id: query.id ? Number(query.id) || this.fallbackService.id : this.fallbackService.id,
-        type: query.type || this.fallbackService.type,
-        name: query.name || this.fallbackService.name,
-        images: this.normalizeArray(query.images || query.image, this.fallbackService.images),
-        address: query.address || this.fallbackService.address,
-        rating: this.normalizeNumber(query.rating, this.fallbackService.rating),
-        distance: this.normalizeNumber(query.distance, this.fallbackService.distance),
-        tags: this.normalizeArray(query.tags, this.fallbackService.tags),
-        price: query.price || this.fallbackService.price,
-        intro: query.intro || this.fallbackService.intro,
-        projects: query.projects ? this.normalizeProjects(query.projects) : this.fallbackService.projects
-      }
-    }
-  },
+  //     return {
+  //       ...this.fallbackService,
+  //       id: query.id ? Number(query.id) || this.fallbackService.id : this.fallbackService.id,
+  //       type: query.type || this.fallbackService.type,
+  //       name: query.name || this.fallbackService.name,
+  //       images: this.normalizeArray(query.images || query.image, this.fallbackService.images),
+  //       address: query.address || this.fallbackService.address,
+  //       rating: this.normalizeNumber(query.rating, this.fallbackService.rating),
+  //       tags: this.normalizeArray(query.tags, this.fallbackService.tags),
+  //       price: query.price || this.fallbackService.price,
+  //       intro: query.intro || this.fallbackService.intro,
+  //       projects: query.projects ? this.normalizeProjects(query.projects) : this.fallbackService.projects
+  //     }
+  //   }
+  // },
 
   methods: {
     handleGalleryScroll(event) {
       const container = event.target
       const width = container.clientWidth
-
       if (!width) {
-        return
+        this.activeImageIndex = Math.round(container.scrollLeft / width)
       }
-
-      this.activeImageIndex = Math.round(container.scrollLeft / width)
     },
 
-    toggleFavorite() {
-      this.favorite = !this.favorite
-    },
+    // toggleFavorite() {
+    //   this.favorite = !this.favorite
+    // },
 
     loadCurrentUser() {
-      const stored = JSON.parse(localStorage.getItem("pawhub_user_profile") || "null")
-
-      if (!stored) {
-        return
-      }
-
-      this.currentUser = {
-        username: stored.username || stored.name || this.currentUser.username,
-        avatar: stored.avatar || this.currentUser.avatar
+      const user = JSON.parse(localStorage.getItem("user") || "{}")
+      this.currentUser = user
+    },
+     async loadServiceDetail() {
+      try {
+        const res = await getServiceDetail(this.serviceId)
+        // console.log("后端返回的 services_offered:", res.data.services_offered)
+        // console.log("services_offered 类型:", typeof res.data.services_offered)
+        if (res.code === 1) {
+          const data = res.data
+          this.service = {
+            serviceId: data.service_id,
+            name: data.name,
+            address: data.address,
+            rating: data.rating,
+            images: Array.isArray(data.images) ? data.images : [],
+            tags: data.tags || [],
+            description: data.description,
+            servicesOffered: data.services_offered || [],  // 后端返回的套餐列表
+            isFavorited: data.is_favorited || false,
+            intro: data.description,
+            price: data.price
+          }
+          this.favorite = this.service.isFavorited
+        }
+      } catch (error) {
+        console.error("加载商户详情失败", error)
       }
     },
 
-    submitComment() {
-      const text = String(this.commentDraft || "").trim()
+      async loadComments() {
+      try {
+        const res = await getServiceReviews(this.serviceId, { page: 1, pageSize: 20 })
+          console.log("=== 后端返回的原始数据 ===", res)
+      console.log("第一条评论:", res.data.list?.[0])
+      console.log("所有字段:", Object.keys(res.data.list?.[0] || {}))
+        if (res.code === 1) {
+          const list = (res.data.list || []).map(c => this.normalizeCommentItem(c))
+          // 为每条根评论加载回复
+      for (const comment of list) {
+        const repliesRes = await getReviewReplies(this.serviceId, comment.id)
+        if (repliesRes.code === 1) {
+          comment.replies = (repliesRes.data || []).map(reply => this.normalizeReplyItem(reply, comment.name))
+          comment.replyCount = comment.replies.length
+        }
+      }
+          this.commentList = list
+        }
+      } catch (error) {
+        console.error("加载评论失败", error)
+      }
+    },
+    
+    // 标准化评论数据
+  normalizeCommentItem(comment) {
+    // 输出原始评论数据中与点赞相关的字段，便于排查后端字段名或值类型
+    try {
+      console.log("normalizeCommentItem raw:", {
+        id: comment.reviewId ?? comment.review_id ?? comment.id,
+        likedField: comment.liked,
+        is_liked: comment.is_liked,
+        likeCount: comment.likeCount ?? comment.likes ?? comment.like_count,
+        raw: comment
+      })
+    } catch (e) {
+      console.log('normalizeCommentItem log error', e)
+    }
 
-      if (!text && !this.commentImage) {
+    const commentImages = this.parseJson(comment.images || [])
+    const currentUserId = String(this.currentUser.userId || localStorage.getItem("userId") || "")
+    const commentUserId = String(comment.userId ?? comment.user_id ?? "")
+    const currentUserName = String(this.currentUser.username || "").trim()
+    const commentName = String(comment.username || comment.name || "").trim()
+    const replies = Array.isArray(comment.replies)
+      ? comment.replies.map(reply => this.normalizeReplyItem(reply, comment.username || comment.name || "匿名用户"))
+      : []
+
+    return {
+      id: comment.reviewId ?? comment.review_id ?? comment.id,
+      name: comment.username || comment.name || "匿名用户",
+      time: this.formatTime(comment.createTime || comment.create_time),
+      avatar: this.toDisplayImageUrl(comment.avatar || "") || "",
+      content: comment.content || "",
+      image: this.toDisplayImageUrl(commentImages[0] || "") || "",
+      // 后端可能返回不同命名：like_count / likeCount / likes
+      likes: Number(comment.likeCount ?? comment.likes ?? comment.like_count ?? 0),
+      // 后端可能返回 liked / is_liked / has_liked / like_status 等
+      liked: this.toBooleanLikeFlag(
+        comment.liked ?? comment.is_liked ?? comment.has_liked ?? comment.like_status ?? comment.is_like ?? comment.liked_flag
+      ),
+      userId: commentUserId,
+      isMine: Boolean(
+        (currentUserId && commentUserId && currentUserId === commentUserId) ||
+        (currentUserName && commentName && currentUserName === commentName)
+      ),
+      replyCount: Number(comment.replyCount ?? 0),
+      replies: replies
+    }
+  },
+
+  // 标准化回复数据
+  normalizeReplyItem(reply, fallbackTargetName) {
+    // 输出原始回复数据中与点赞相关的字段，便于排查
+    try {
+      console.log("normalizeReplyItem raw:", {
+        id: reply.reviewId ?? reply.review_id ?? reply.id,
+        likedField: reply.liked,
+        is_liked: reply.is_liked,
+        likeCount: reply.likeCount ?? reply.likes ?? reply.like_count,
+        raw: reply
+      })
+    } catch (e) {
+      console.log('normalizeReplyItem log error', e)
+    }
+
+    const replyImages = this.parseJson(reply.images || [])
+    const text = String(reply.content || reply.text || "").trim()
+    const currentUserId = String(this.currentUser.userId || localStorage.getItem("userId") || "")
+    const replyUserId = String(reply.userId ?? reply.user_id ?? "")
+    const currentUserName = String(this.currentUser.username || "").trim()
+    const replyName = String(reply.username || reply.name || "").trim()
+
+    return {
+      id: reply.reviewId ?? reply.review_id ?? reply.id,
+      comment_id: reply.reviewId ?? reply.review_id ?? reply.id,
+      content: reply.content || text,
+      text: text,
+      displayText: text,
+      image: this.toDisplayImageUrl(reply.image || replyImages[0] || "") || "",
+      targetName: reply.targetName || fallbackTargetName || "",
+      avatar: this.toDisplayImageUrl(reply.avatar || "") || "",
+      likes: Number(reply.likeCount ?? reply.likes ?? reply.like_count ?? 0),
+      liked: this.toBooleanLikeFlag(
+        reply.liked ?? reply.is_liked ?? reply.has_liked ?? reply.like_status ?? reply.is_like ?? reply.liked_flag
+      ),
+      userId: replyUserId,
+      name: replyName,
+      isMine: Boolean(
+        (currentUserId && replyUserId && currentUserId === replyUserId) ||
+        (currentUserName && replyName && currentUserName === replyName)
+      )
+      }
+  },
+
+      async toggleFavorite() {
+      if (!this.currentUser.userId) {
+        this.$router.push("/login")
+        return
+      }
+      try {
+        if (this.favorite) {
+          await removeFavorite({ userId: this.currentUser.userId, serviceId: this.serviceId })
+        } else {
+          await addFavorite({ userId: this.currentUser.userId, serviceId: this.serviceId })
+        }
+        this.favorite = !this.favorite
+      } catch (error) {
+        console.error("收藏操作失败", error)
+      }
+    },
+
+    async submitComment() {
+      const text = this.commentDraft.trim()
+      if (!text && !this.commentImage) return
+      if (!this.currentUser.userId) {
+        this.$router.push("/login")
         return
       }
 
-      this.commentList = [{
-        id: Date.now(),
-        name: this.currentUser.username,
-        time: this.formatNow(),
-        avatar: this.currentUser.avatar,
-        content: text,
-        image: this.commentImage,
-        likes: 0,
-        replyCount: 0,
-        replies: [],
-        lastReply: "",
-        liked: false,
-        isMine: true
-      }, ...this.commentList]
+      try {
 
-      this.extraCommentCount += 1
-      this.commentDraft = ""
-      this.clearCommentImage()
+      let uploadedImageUrl = ""
+
+      if (this.commentImageFile) {
+        const uploadRes = await uploadFile(this.commentImageFile)
+        uploadedImageUrl = this.resolveUploadedUrl(uploadRes) || ""
+        if (!uploadedImageUrl) {
+          this.$message.error("评论图片上传失败")
+          return
+        }
+      }
+
+        const res = await createServiceReview(this.serviceId, {
+          userId: this.currentUser.userId,
+          rating: 5,
+          content: text,
+          images: uploadedImageUrl ? [uploadedImageUrl] : []
+        })
+        if (res.code === 1) {
+          this.commentDraft = ""
+          this.clearCommentImage()
+          await this.loadComments()  // 刷新评论列表
+          this.$message.success("评论成功")
+        }else{
+          this.$message.error(res.msg || "评论失败")
+        }
+      } catch (error) {
+        console.error("提交评论失败", error)
+        this.$message.error("发表评论失败")
+      }
     },
 
     triggerCommentImage() {
@@ -270,6 +465,9 @@ export default {
       if (!file) {
         return
       }
+        this.commentImageFile = file
+        this.commentImage = URL.createObjectURL(file)
+      
 
       const reader = new FileReader()
       reader.onload = () => {
@@ -279,57 +477,289 @@ export default {
     },
 
     clearCommentImage() {
+      if (this.commentImage && this.commentImage.startsWith("blob:")) {
+      URL.revokeObjectURL(this.commentImage)
+    }
       this.commentImage = ""
+      this.commentImageFile = null
       if (this.$refs.commentImageInput) {
         this.$refs.commentImageInput.value = ""
+  }
+    },
+
+        async likeComment(reviewId) {
+      try {
+        await likeServiceReview(this.serviceId, reviewId)
+        await this.loadComments()
+      } catch (error) {
+        console.error("点赞失败", error)
       }
     },
 
-    handleLikeComment(commentId) {
-      this.commentList = this.commentList.map(comment => {
-        if (comment.id !== commentId) {
-          return comment
-        }
-
-        const nextLiked = !comment.liked
-        const nextLikes = nextLiked
-          ? (comment.likes || 0) + 1
-          : Math.max((comment.likes || 0) - 1, 0)
-
-        return {
-          ...comment,
-          liked: nextLiked,
-          likes: nextLikes
-        }
-      })
+    async unlikeComment(reviewId) {
+      try {
+        await unlikeServiceReview(this.serviceId, reviewId)
+        await this.loadComments()
+      } catch (error) {
+        console.error("取消点赞失败", error)
+      }
     },
 
-    handleReplyComment(payload) {
-      this.commentList = this.commentList.map(comment => {
-        if (comment.id !== payload.id) {
-          return comment
+    async handleLikeComment(commentId) {
+  if (!this.serviceId) return
+  
+  const target = this.commentList.find(c => c.id === commentId)
+  if (!target) return
+
+  const wasLiked = target.liked  // true=已点赞, false=未点赞
+  const oldLikes = target.likes
+
+  // 乐观更新
+  target.liked = !wasLiked
+  target.likes = wasLiked ? oldLikes - 1 : oldLikes + 1
+
+  try {
+    if (wasLiked) {
+      // 已点赞 → 取消点赞
+      await unlikeServiceReview(this.serviceId, commentId)
+    } else {
+      // 未点赞 → 点赞
+      await likeServiceReview(this.serviceId, commentId)
+    }
+  } catch (error) {
+    // 失败时回滚
+    target.liked = wasLiked
+    target.likes = oldLikes
+    console.error("点赞操作失败", error)
+    this.$message.error("操作失败")
+  }
+},
+
+async handleLikeReply(payload) {
+  if (!this.serviceId || !payload?.id) return
+
+  let targetReply = null
+  for (const comment of this.commentList) {
+    const replies = Array.isArray(comment.replies) ? comment.replies : []
+    targetReply = replies.find(r => r.id === payload.id)
+    if (targetReply) break
+  }
+
+  if (!targetReply) return
+
+  const wasLiked = targetReply.liked
+  const oldLikes = targetReply.likes
+
+  targetReply.liked = !wasLiked
+  targetReply.likes = wasLiked ? oldLikes - 1 : oldLikes + 1
+
+  try {
+    if (wasLiked) {
+      await unlikeServiceReview(this.serviceId, payload.id)
+    } else {
+      await likeServiceReview(this.serviceId, payload.id)
+    }
+  } catch (error) {
+    targetReply.liked = wasLiked
+    targetReply.likes = oldLikes
+    console.error("点赞失败", error)
+    this.$message.error("操作失败")
+  }
+},
+
+
+    // async handleLikeComment(commentId) {
+    //   if (!this.serviceId) return
+
+    //   const target = this.commentList.find(c => c.id === commentId)
+    //   if (!target) return
+
+    //   const previousLiked = !target.liked
+    //   const previousLikes = Number(target.likes || 0)
+
+    //   try {
+    //     if (previousLiked) {
+    //       await likeServiceReview(this.serviceId, commentId)
+    //       target.liked = false
+    //       target.likes = Math.max(0, previousLikes - 1)
+    //     } else {
+    //       await unlikeServiceReview(this.serviceId, commentId)
+    //       target.liked = true
+    //       target.likes = previousLikes + 1
+    //     }
+    //   } catch (error) {
+    //     console.error("操作失败", error)
+    //     // 恢复之前的状态
+    //     target.liked = previousLiked
+    //     target.likes = previousLikes
+    //     this.$message.error("点赞失败")
+    //   }
+    // },
+
+    // 点赞回复
+// async handleLikeReply(payload) {
+//   if (!this.serviceId || !payload?.id) return
+
+//   let targetReply = null
+//   for (const comment of this.commentList) {
+//     const replies = Array.isArray(comment.replies) ? comment.replies : []
+//     targetReply = replies.find(r => r.id === payload.id)
+//     if (targetReply) break
+//   }
+
+//   if (!targetReply) return
+
+//   const previousLiked = !!targetReply.liked
+//   const previousLikes = Number(targetReply.likes || 0)
+
+//   try {
+//     if (previousLiked) {
+//       await unlikeServiceReview(this.serviceId, payload.id)
+//       targetReply.liked = false
+//       targetReply.likes = Math.max(0, previousLikes - 1)
+//     } else {
+//       await likeServiceReview(this.serviceId, payload.id)
+//       targetReply.liked = true
+//       targetReply.likes = previousLikes + 1
+//     }
+//   } catch (error) {
+//     targetReply.liked = previousLiked
+//     targetReply.likes = previousLikes
+//     this.$message.error("点赞失败")
+//   }
+// },
+
+    // 回复评论
+async handleReplyComment(payload) {
+  if (!this.serviceId || !payload?.id) return
+
+  try {
+    let uploadedImageUrl = ""
+
+    if (payload.image) {
+      const blob = await fetch(payload.image).then(response => response.blob())
+      const file = new File([blob], `reply-${Date.now()}.png`, { type: blob.type || "image/png" })
+      const uploadRes = await uploadFile(file)
+      uploadedImageUrl = this.resolveUploadedUrl(uploadRes) || ""
+      if (!uploadedImageUrl) {
+        this.$message.error("回复图片上传失败")
+        return
+      }
+    }
+
+       // 使用专门的回复接口
+    const replyData = { content: payload.text || "" }
+    if (uploadedImageUrl) {
+      // 如果后端支持回复带图片，需要扩展
+      replyData.content = payload.text || "[图片]"
+    }
+
+    let res = null
+
+    if (uploadedImageUrl) {
+      // 若包含图片，优先把图片地址放入 replyData.images 并调用 replyServiceReview
+      replyData.images = [uploadedImageUrl]
+      try {
+        res = await replyServiceReview(this.serviceId, payload.id, replyData)
+      } catch (e) {
+        console.warn('replyServiceReview 不支持 images，回退到 createServiceReview 发送带图回复', e)
+        try {
+          res = await createServiceReview(this.serviceId, {
+            userId: this.currentUser.userId,
+            content: payload.text || "[图片]",
+            images: [uploadedImageUrl],
+            parentReviewId: payload.id
+          })
+        } catch (err) {
+          res = err
         }
+      }
+    } else {
+      res = await replyServiceReview(this.serviceId, payload.id, replyData)
+    }
 
-        const nextReplies = Array.isArray(comment.replies)
-          ? [...comment.replies]
-          : []
+    if (res && res.code === 1) {
+      await this.loadComments()
+      this.$message.success("回复成功")
+    } else {
+      this.$message.error((res && res.msg) || "回复失败")
+    }
+  } catch (error) {
+    console.error("回复评论失败:", error)
+    this.$message.error("回复失败")
+  }
+},
 
-        nextReplies.push({
-          text: payload.text,
-          image: payload.image || "",
-          targetName: payload.targetName || comment.name,
-          avatar: this.currentUser.avatar,
-          time: this.formatNow()
-        })
+  // 删除评论
+async handleDeleteComment(comment) {
+  if (!this.serviceId || !comment?.id) return
 
-        return {
-          ...comment,
-          replyCount: (comment.replyCount || 0) + 1,
-          replies: nextReplies,
-          lastReply: payload.text || (payload.image ? "[图片]" : "")
-        }
-      })
-    },
+  try {
+    await deleteServiceReview(this.serviceId, comment.id)
+    await this.loadComments()
+    this.$message.success("删除成功")
+  } catch (error) {
+    console.error("删除评论失败:", error)
+    this.$message.error("删除失败")
+  }
+},
+// 辅助方法
+parseJson(value) {
+  if (!value) return []
+  if (Array.isArray(value)) return value
+  try { return JSON.parse(value) } catch { return [] }
+},
+
+toBooleanLikeFlag(value) {
+  if (typeof value === "boolean") return value
+  if (typeof value === "number") return value === 1
+  if (typeof value === "string") {
+    const text = value.trim().toLowerCase()
+    if (["1", "true", "yes", "y", "liked"].includes(text)) return true
+    if (["0", "false", "no", "n", "unliked", ""].includes(text)) return false
+  }
+  return false
+},
+
+formatTime(dateTime) {
+  if (!dateTime) return '刚刚'
+  const date = new Date(dateTime)
+  const now = new Date()
+  const diff = now - date
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+  return `${Math.floor(diff / 86400000)}天前`
+},
+
+resolveUploadedUrl(response) {
+  if (!response) return ""
+  if (typeof response === "string") return response
+  if (typeof response !== "object") return ""
+  const candidates = [response.data, response.url, response.path, response.fileUrl, response.filePath]
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate) return candidate
+  }
+  if (response.data && typeof response.data === "object") return this.resolveUploadedUrl(response.data)
+  return ""
+},
+
+normalizeUploadPath(path) {
+  if (!path) return ""
+  if (/^https?:\/\//.test(path)) return path
+  if (path.startsWith("/")) return path
+  if (path.startsWith("uploads/")) return `/${path}`
+  if (path.startsWith("uploads\\")) return `/${path.replace(/\\/g, "/")}`
+  return path
+},
+
+toDisplayImageUrl(path) {
+  const normalized = this.normalizeUploadPath(path)
+  if (!normalized) return ""
+  if (/^https?:\/\//.test(normalized)) return normalized
+  if (normalized.startsWith("/uploads")) return `http://localhost:8080${normalized}`
+  return normalized
+},
 
 		formatNow() {
 			const now = new Date()
@@ -337,63 +767,65 @@ export default {
 			return `${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
 		},
 
-    normalizeArray(value, fallback) {
-      if (!value) {
-        return Array.isArray(fallback) ? fallback : []
-      }
+    //   if (!value) {
+    //     return Array.isArray(fallback) ? fallback : []
+    //   }
 
-      if (Array.isArray(value)) {
-        return value
-      }
+    //   if (Array.isArray(value)) {
+    //     return value
+    //   }
 
-      if (typeof value === "string") {
-        try {
-          const parsed = JSON.parse(value)
+    //   if (typeof value === "string") {
+    //     try {
+    //       const parsed = JSON.parse(value)
 
-          if (Array.isArray(parsed)) {
-            return parsed
-          }
-        } catch (error) {
-          return value.split(",").map(item => item.trim()).filter(Boolean)
-        }
-      }
+    //       if (Array.isArray(parsed)) {
+    //         return parsed
+    //       }
+    //     } catch (error) {
+    //       return value.split(",").map(item => item.trim()).filter(Boolean)
+    //     }
+    //   }
 
-      return Array.isArray(fallback) ? fallback : []
-    },
+    //   return Array.isArray(fallback) ? fallback : []
+    // },
 
-    normalizeProjects(value) {
-      if (!value) {
-        return this.fallbackService.projects
-      }
+    // normalizeProjects(value) {
+    //   if (!value) {
+    //     return this.fallbackService.projects
+    //   }
 
-      if (typeof value === "string") {
-        try {
-          const parsed = JSON.parse(value)
-          if (Array.isArray(parsed)) {
-            return parsed
-          }
-        } catch (error) {
-          return this.fallbackService.projects
-        }
-      }
+    //   if (typeof value === "string") {
+    //     try {
+    //       const parsed = JSON.parse(value)
+    //       if (Array.isArray(parsed)) {
+    //         return parsed
+    //       }
+    //     } catch (error) {
+    //       return this.fallbackService.projects
+    //     }
+    //   }
 
-      return Array.isArray(value) ? value : this.fallbackService.projects
-    },
+    //   return Array.isArray(value) ? value : this.fallbackService.projects
+    // },
 
-    normalizeNumber(value, fallback) {
-      const number = Number(value)
-      return Number.isFinite(number) ? number : fallback
-    },
+    // normalizeNumber(value, fallback) {
+    //   const number = Number(value)
+    //   return Number.isFinite(number) ? number : fallback
+    // },
 
     handleBooking() {
+      console.log("=== handleBooking 调试 ===")
+      console.log("传递的商户ID:", this.serviceId)
+      console.log("传递的商户名称:", this.service.name)
       this.$router.push({
-        name: "serviceAppointment",
+        path:'/service/appointment',
         query: {
-          id: this.service.id,
+          id: this.serviceId,
           name: this.service.name,
           address: this.service.address,
           price: this.service.price,
-          projects: JSON.stringify(this.service.projects || [])
+          servicesOffered: JSON.stringify(this.service.servicesOffered || [])
         }
       })
     },

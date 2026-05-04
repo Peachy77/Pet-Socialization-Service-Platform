@@ -52,8 +52,8 @@ public class AppointmentOrderServiceImplTest {
     @Test
     void testGetOrderDetail_Success() {
         Map<String, Object> mockOrder = new HashMap<>();
-        mockOrder.put("order_id", 100);
-        mockOrder.put("user_id", 1);
+        mockOrder.put("orderId", 100);
+        mockOrder.put("userId", 1);
         mockOrder.put("price", new BigDecimal("199.00"));
 
         when(appointmentOrderMapper.selectById(100)).thenReturn(mockOrder);
@@ -61,14 +61,14 @@ public class AppointmentOrderServiceImplTest {
         Map<String, Object> result = orderService.getOrderDetail(100, 1);
 
         assertNotNull(result);
-        assertEquals(100, result.get("order_id"));
+        assertEquals(100, result.get("orderId"));
     }
 
     @Test
     void testGetOrderDetail_NotBelongToUser() {
         Map<String, Object> mockOrder = new HashMap<>();
-        mockOrder.put("order_id", 100);
-        mockOrder.put("user_id", 2); // 订单属于用户2
+        mockOrder.put("orderId", 100);
+        mockOrder.put("userId", 2); // 订单属于用户2
 
         when(appointmentOrderMapper.selectById(100)).thenReturn(mockOrder);
 

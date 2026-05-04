@@ -44,12 +44,6 @@
         综合
       </span>
 
-      <span
-        :class="{on:sortType==='distance'}"
-        @click="changeSort('distance')"
-      >
-        距离
-      </span>
 
       <span
         :class="{on:sortType==='rating'}"
@@ -74,10 +68,21 @@
   <div class="list">
 
     <ServiceCard
-      v-for="item in sortedServices"
+      v-for="item in services"
       :key="item.id"
       :service="item"
     />
+
+    <!-- 加载更多 -->
+    <div v-if="loading" class="loading-text">加载中...</div>
+    <div v-if="!loading && services.length === 0" class="empty-text">暂无数据</div>
+
+    <!-- 分页 -->
+    <div class="pagination" v-if="total > pageSize">
+      <button class="page-btn" :disabled="page === 1" @click="goPage(page - 1)">上一页</button>
+      <span class="page-info">{{ page }} / {{ totalPages }}</span>
+      <button class="page-btn" :disabled="page === totalPages" @click="goPage(page + 1)">下一页</button>
+    </div>
 
   </div>
 
@@ -89,6 +94,7 @@
 <script>
 
 import ServiceCard from "@/components/ServiceCard.vue"
+import { getServices } from "@/api/services"
 
 export default {
 
@@ -101,7 +107,7 @@ export default {
 
         return{
 
-            active:"美容",
+            active:"全部",
 
             sortType:"default",
 
@@ -111,118 +117,214 @@ export default {
 
             services:[
 
-            {
-            id:1,
-            type:"美容",
-            name:"爱宠美容工作室",
-            image:"https://images.unsplash.com/photo-1516734212186-a967f81ad0d7",
-            address:"朝阳区建国路88号",
-            rating:4.8,
-            distance:1.2,
-            tags:["洗澡","美容","造型"],
-            price:"¥88起"
-            },
+            // {
+            // id:1,
+            // type:"美容",
+            // name:"爱宠美容工作室",
+            // image:"https://images.unsplash.com/photo-1516734212186-a967f81ad0d7",
+            // address:"朝阳区建国路88号",
+            // rating:4.8,
+            // distance:1.2,
+            // tags:["洗澡","美容","造型"],
+            // price:"¥88起"
+            // },
 
-            {
-            id:2,
-            type:"寄养",
-            name:"萌宠乐园寄养中心",
-            image:"https://images.unsplash.com/photo-1583337130417-3346a1be7dee",
-            address:"海淀区中关村大街123号",
-            rating:4.9,
-            distance:2.5,
-            tags:["寄养","托管","训练"],
-            price:"¥150/天"
-            },
+            // {
+            // id:2,
+            // type:"寄养",
+            // name:"萌宠乐园寄养中心",
+            // image:"https://images.unsplash.com/photo-1583337130417-3346a1be7dee",
+            // address:"海淀区中关村大街123号",
+            // rating:4.9,
+            // distance:2.5,
+            // tags:["寄养","托管","训练"],
+            // price:"¥150/天"
+            // },
 
-            {
-            id:3,
-            type:"医院",
-            name:"宠物之家医院",
-            image:"https://images.unsplash.com/photo-1517849845537-4d257902454a",
-            address:"西城区西单北大街45号",
-            rating:4.7,
-            distance:3.1,
-            tags:["诊疗","疫苗","体检"],
-            price:"¥200起"
-            },
+            // {
+            // id:3,
+            // type:"医院",
+            // name:"宠物之家医院",
+            // image:"https://images.unsplash.com/photo-1517849845537-4d257902454a",
+            // address:"西城区西单北大街45号",
+            // rating:4.7,
+            // distance:3.1,
+            // tags:["诊疗","疫苗","体检"],
+            // price:"¥200起"
+            // },
 
-            {
-            id:4,
-            type:"美容",
-            name:"毛孩子SPA会所",
-            image:"https://images.unsplash.com/photo-1507149833265-60c372daea22",
-            address:"东城区王府井大街67号",
-            rating:4.6,
-            distance:1.8,
-            tags:["SPA","美容","按摩"],
-            price:"¥128起"
-            }
+            // {
+            // id:4,
+            // type:"美容",
+            // name:"毛孩子SPA会所",
+            // image:"https://images.unsplash.com/photo-1507149833265-60c372daea22",
+            // address:"东城区王府井大街67号",
+            // rating:4.6,
+            // distance:1.8,
+            // tags:["SPA","美容","按摩"],
+            // price:"¥128起"
+            // }
 
-            ]
-
+            ],
+            loading: false,
+            page: 1,
+            pageSize: 10,
+            total: 0
         }
-
     },
     mounted(){
 
-        const type = this.$route.query.type
+        // const type = this.$route.query.type
 
-        if(type){
-        this.active = type
+        // if(type){
+        // this.active = type
+        // }
+        const typeParam = this.$route.query.type
+        if (typeParam) {
+        this.active = this.getCategoryZh(typeParam)
         }
+        this.fetchServices()
     },
     computed:{
 
-        /* 分类过滤 */
+        // /* 分类过滤 */
 
-        filteredServices(){
+        // filteredServices(){
 
-        if(this.active==="全部") return this.services
+        // if(this.active==="全部") return this.services
 
-        return this.services.filter(
-        s=>s.type===this.active
-        )
+        // return this.services.filter(
+        // s=>s.type===this.active
+        // )
 
-        },
+        // },
 
-        /* 排序 */
+        // /* 排序 */
 
-        sortedServices(){
+        // sortedServices(){
 
-        let arr=[...this.filteredServices]
+        // let arr=[...this.filteredServices]
 
-        if(this.sortType==="distance"){
-        arr.sort((a,b)=>a.distance-b.distance)
-        }
+        // if(this.sortType==="distance"){
+        // arr.sort((a,b)=>a.distance-b.distance)
+        // }
 
-        if(this.sortType==="rating"){
-        arr.sort((a,b)=>b.rating-a.rating)
-        }
+        // if(this.sortType==="rating"){
+        // arr.sort((a,b)=>b.rating-a.rating)
+        // }
 
-        return arr
+        // return arr
 
-        }
+        // }
+
+          totalPages() {
+      return Math.ceil(this.total / this.pageSize)
+    }
 
     },
     methods:{
+
+      getCategoryEn(chinese) {
+      const map = {
+        "全部": null,
+        "美容": "grooming",
+        "遛狗": "walking",
+        "寄养": "boarding",
+        "托管": "sitting",
+        "医院": "vet",
+        "救助": "emergency"
+      }
+      return map[chinese]
+    },
+
+    // 英文 → 中文 转换（显示用）
+    getCategoryZh(en) {
+      const map = {
+        "grooming": "美容",
+        "walking": "遛狗",
+        "boarding": "寄养",
+        "sitting": "托管",
+        "vet": "医院",
+        "emergency": "救助"
+      }
+      return map[en] || en
+    },
+
+        // 获取服务列表
+    async fetchServices() {
+      this.loading = true
+      try {
+        const params = {
+          page: this.page,
+          pageSize: this.pageSize,
+          type: this.getCategoryEn(this.active)
+        }
+        console.log("请求参数:", params)
+        const res = await getServices(params)
+        console.log("完整响应:", res)
+        console.log("res.code:", res.code)
+        console.log("res.data:", res.data)
+        if (res.code === 1) {
+          let list = res.data?.list || []
+           console.log("解析后的 list:", list)
+
+          this.services = list.map(item => ({
+            id: item.service_id,
+            name: item.name,
+            category: item.category,
+            image: item.images?.[0] || "",
+            address: item.address,
+            rating: item.rating,
+            tags: item.tags || [],
+            price: `¥${item.min_price || item.price || 0}起`
+          }))
+          this.total = res.data?.total || 0
+          console.log("最终 services:", this.services)
+        }else {
+          console.log("接口返回失败:", res.msg)
+        }
+      } catch (error) {
+        console.error("获取服务列表失败", error)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 排序（综合和评分）
+    sortServices() {
+      if (this.sortType === "default") {
+        // 综合排序：按价格降序
+        this.services.sort((a, b) => (b.price || 0) - (a.price || 0))
+      } else if (this.sortType === "rating") {
+        this.services.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      }
+    },
+
         goBack(){
           this.$router.push({ path: '/home' })         
         },
+
+        goPage(page) {
+          this.page = page
+          this.fetchServices()
+      },
 
         changeCategory(item){
 
         this.active=item
 
         this.$router.replace({
-        query:{ type:item }
+          query: { type: this.getCategoryEn(item) }
         })
-
-        },
+            // 切换分类时重置为第一页
+            this.page = 1
+            this.fetchServices()
+      },
 
         changeSort(type){
 
         this.sortType=type
+        this.sortServices()
 
         }
 
@@ -325,6 +427,39 @@ export default {
 
 .list{
   margin-top:5px;
+}
+
+/* 分页 */
+.pagination{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-top:16px;
+}
+
+.page-btn{
+  background:#9d8bdc;
+  color:#fff;
+  border:none;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+  transition:background 0.15s;
+}
+
+.page-btn:hover{background:#8d7fe3}
+
+.page-btn:disabled{
+  background:#e6e6ea;
+  color:#999;
+  cursor:not-allowed;
+}
+
+.page-info{
+  font-size:14px;
+  color:#666;
 }
 
 </style>

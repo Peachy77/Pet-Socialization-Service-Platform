@@ -107,6 +107,7 @@
       <OrderList
         :orders="orders"
         @view="viewOrder"
+        @delete-order="deleteOrder"
         @cancel="cancelOrder"
         @rebook="rebookOrder"
       />
@@ -126,7 +127,7 @@ import PostCard from "@/components/PostCard.vue"
 import ServiceCard from "@/components/ServiceCard.vue"
 import OrderList from "@/components/OrderList.vue"
 import { getCurrentUser, getMyPosts, getMyFavorites, getMyOrders, getUser } from "@/api/users"
-import { cancelOrder as cancelOrderApi } from "@/api/orders"
+import { cancelOrder as deleteOrderApi, updateOrderStatus } from "@/api/orders"
 import { likePost, unlikePost, deletePost } from "@/api/posts"
 import defaultCatAvatar from "@/assets/cat.png"
 
@@ -342,17 +343,29 @@ export default {
 
       const projects = this.toArray(service.projects || service.projectNames)
       const tags = this.toArray(service.tags || service.tagList || projects)
+      const images = this.toArray(
+        service.images ||
+        service.imageList ||
+        service.image_urls ||
+        service.imageUrls
+      )
+      const coverImage =
+        images[0] ||
+        service.image ||
+        service.cover ||
+        service.coverImage ||
+        this.getFallbackAvatar()
 
       return {
         id: service.id ?? service.serviceId ?? service.service_id,
         type: service.type || service.category || "pet",
         name: service.name || service.serviceName || "未命名服务",
-        image: service.image || service.cover || service.coverImage || this.getFallbackAvatar(),
+        image: coverImage,
         address: service.address || service.location || "",
         rating: String(service.rating ?? service.score ?? "0"),
         distance: String(service.distance ?? service.distanceKm ?? "0"),
         tags,
-        price: this.normalizePrice(service.price)
+        price: `¥${service.min_price || service.price || 0}起`
       }
     },
 
@@ -432,8 +445,28 @@ export default {
           .map(item => this.mapPost(item))
           .filter(Boolean)
 
-        this.favoriteServices = this.extractList(favoritesPayload)
-          .map(item => this.mapFavorite(item))
+        const favoriteItems = this.extractList(favoritesPayload)
+        console.log("[MineView] 收藏接口原始数据", favoriteItems)
+
+        this.favoriteServices = favoriteItems
+          .map(item => {
+            const mapped = this.mapFavorite(item)
+            console.log("[MineView] 收藏项映射结果", {
+              raw: item,
+              imageCandidates: {
+                image: item?.image,
+                cover: item?.cover,
+                coverImage: item?.coverImage,
+                imageUrl: item?.imageUrl,
+                imageUrls: item?.imageUrls,
+                img: item?.img,
+                pic: item?.pic
+              },
+              mapped
+            })
+
+            return mapped
+          })
           .filter(Boolean)
 
         this.orders = this.extractList(ordersPayload)
@@ -487,27 +520,43 @@ export default {
       })
     },
 
-    cancelOrder(order){
+    async cancelOrder(order){
       if (order.status !== "pending") return
 
       const confirmed = window.confirm("确认取消订单吗？")
       if (!confirmed) return
 
-      const updateTime = this.formatNow()
       const target = this.orders.find(item => item.id === order.id)
       if (!target) return
 
-      cancelOrderApi(order.id)
-        .then(() => {
-          target.status = "cancelled"
-          target.updateTime = updateTime
-          this.$message.success("订单已取消")
-        })
-        .catch(() => {
-          target.status = "cancelled"
-          target.updateTime = updateTime
-          this.$message.success("订单状态已更新")
-        })
+      try {
+        await this.unwrapPayload(await updateOrderStatus(order.id, { status: "cancelled" }))
+
+        const updateTime = this.formatNow()
+        target.status = "cancelled"
+        target.updateTime = updateTime
+        this.$message.success("订单已取消")
+      } catch (error) {
+        const msg = error?.response?.data?.message || error?.message || "取消订单失败"
+        this.$message.error(msg)
+      }
+    },
+
+    async deleteOrder(order){
+      const orderId = order?.id
+      if (!orderId) return
+
+      const confirmed = window.confirm("确认删除这条订单吗？")
+      if (!confirmed) return
+
+      try {
+        await this.unwrapPayload(await deleteOrderApi(orderId))
+        this.orders = this.orders.filter(item => item.id !== orderId)
+        this.$message.success("订单已删除")
+      } catch (error) {
+        const msg = error?.response?.data?.message || error?.message || "删除订单失败"
+        this.$message.error(msg)
+      }
     },
 
     rebookOrder(order){

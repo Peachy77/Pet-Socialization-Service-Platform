@@ -335,7 +335,7 @@ export default {
             rating: s.rating || 0,
             distance: s.distance || '未知',
             tags: this.parseJson(s.tags) || [],
-            price: s.price ? `¥${s.price}起` : '暂无',
+            price: s.min_price ? `¥${s.min_price}起` : (s.price ? `¥${s.price}起` : '暂无'),
             image: s.image || (s.images && s.images[0]) || 'https://placekitten.com/200/200'
           })).filter(item => item.id !== undefined && item.id !== null)
         } else {

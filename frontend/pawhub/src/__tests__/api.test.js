@@ -298,7 +298,7 @@ describe('纯 API 层测试', () => {
       expect(mockGet).toHaveBeenNthCalledWith(1, '/orders', { params: { status: 'pending' } });
       expect(mockGet).toHaveBeenNthCalledWith(2, '/users/8/orders', { params: { status: 'done' } });
       expect(mockGet).toHaveBeenNthCalledWith(3, '/orders', { params: { page: 2 } });
-      expect(mockGet).toHaveBeenNthCalledWith(4, '/users/9/orders', { params: { page: 3 } });
+      expect(mockGet).toHaveBeenNthCalledWith(4, '/orders', { params: { page: 3 } });
     });
 
     test('创建、详情、取消和更新订单状态接口正确', async () => {

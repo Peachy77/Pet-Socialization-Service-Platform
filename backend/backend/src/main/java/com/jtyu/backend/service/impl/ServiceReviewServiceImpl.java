@@ -30,12 +30,16 @@ public class ServiceReviewServiceImpl implements ServiceReviewService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public Map<String, Object> getReviewsByServiceId(Integer serviceId, Integer page, Integer pageSize) {
+    public Map<String, Object> getReviewsByServiceId(Integer serviceId, Integer page, Integer pageSize, Integer currentUserId) {
         int offset = (page - 1) * pageSize;
-        List<Map<String, Object>> list = serviceReviewMapper.selectByServiceId(serviceId, offset, pageSize);
-        Long total = serviceReviewMapper.countByServiceId(serviceId);
+        List<Map<String, Object>> list = serviceReviewMapper.selectRootByServiceId(serviceId, offset, pageSize, currentUserId);
+        Long total = serviceReviewMapper.countRootByServiceId(serviceId);
         // 解析 images JSON
         for (Map<String, Object> review : list) {
+            Integer reviewId = (Integer) review.get("review_id");
+            List<Map<String, Object>> replies = serviceReviewMapper.selectRepliesByParentId(reviewId, currentUserId);
+            review.put("replies", replies != null ? replies : Collections.emptyList());
+            review.put("replyCount", replies != null ? replies.size() : 0);
             String imagesStr = (String) review.get("images");
             if (imagesStr != null && !imagesStr.isEmpty()) {
                 try {
@@ -62,6 +66,7 @@ public class ServiceReviewServiceImpl implements ServiceReviewService {
         ServiceReview review = new ServiceReview();
         review.setUserId(userId);
         review.setServiceId(serviceId);
+        review.setParentReviewId(0);
         review.setRating(rating != null ? BigDecimal.valueOf(rating) : null);
         review.setContent(content);
         try {
@@ -99,13 +104,13 @@ public class ServiceReviewServiceImpl implements ServiceReviewService {
     }
 
     @Override
-    public List<Map<String, Object>> getRepliesByReviewId(Integer reviewId) {
-        return serviceReviewMapper.selectRepliesByParentId(reviewId);
+    public List<Map<String, Object>> getRepliesByReviewId(Integer reviewId, Integer currentUserId) {
+        return serviceReviewMapper.selectRepliesByParentId(reviewId, currentUserId);
     }
 
     @Override
     @Transactional
-    public Integer replyReview(Integer userId, Integer serviceId, Integer parentReviewId, String content) {
+    public Integer replyReview(Integer userId, Integer serviceId, Integer parentReviewId, String content, List<String> images) {
         // 检查父评论是否存在
         Map<String, Object> parentReview = serviceReviewMapper.selectById(parentReviewId);
         if (parentReview == null) {
@@ -118,12 +123,42 @@ public class ServiceReviewServiceImpl implements ServiceReviewService {
         review.setParentReviewId(parentReviewId);
         review.setContent(content);
         review.setRating(null);  // 回复不需要评分
-        review.setImages("[]");
+
+        try {
+            review.setImages(objectMapper.writeValueAsString(images != null ? images : Collections.emptyList()));
+        } catch (Exception e) {
+            review.setImages("[]");
+        }
 
         int rows = serviceReviewMapper.insert(review);
         if (rows > 0) {
             return review.getReviewId();
         }
         return null;
+    }
+
+    @Override
+    @Transactional
+    public boolean deleteReview(Integer reviewId, Integer currentUserId) {
+        // 检查评论是否存在且属于当前用户
+        Integer userId = serviceReviewMapper.selectUserIdByReviewId(reviewId);
+        if (userId == null || !userId.equals(currentUserId)) {
+            return false;
+        }
+
+        // 获取评论所属的服务ID
+        Map<String, Object> review = serviceReviewMapper.selectById(reviewId);
+        Integer serviceId = (Integer) review.get("service_id");
+
+        int result = serviceReviewMapper.deleteById(reviewId);
+        if (result > 0) {
+            // 更新商户评分
+            Map<String, Object> stats = serviceReviewMapper.selectRatingStats(serviceId);
+            BigDecimal avgRating = stats != null ? (BigDecimal) stats.get("avgRating") : BigDecimal.ZERO;
+            Long count = stats != null ? (Long) stats.get("count") : 0L;
+            serviceMerchantMapper.updateRating(serviceId, avgRating, count.intValue());
+            return true;
+        }
+        return false;
     }
 }

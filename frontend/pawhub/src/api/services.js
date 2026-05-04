@@ -77,6 +77,15 @@ export function createServiceReview(serviceId, data) {
 export function replyServiceReview(serviceId, reviewId, data) {
   return apiClient.post(`/services/${serviceId}/reviews/${reviewId}/replies`, data);
 }
+// 获取评论的回复列表
+export function getReviewReplies(serviceId, reviewId) {
+  return apiClient.get(`/services/${serviceId}/reviews/${reviewId}/replies`);
+}
+
+// 删除商户评论
+export function deleteServiceReview(serviceId, reviewId) {
+  return apiClient.delete(`/services/${serviceId}/reviews/${reviewId}`)
+}
 
 // 点赞商户评论
 export function likeServiceReview(serviceId, reviewId) {

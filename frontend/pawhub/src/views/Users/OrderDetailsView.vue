@@ -74,7 +74,7 @@
 </template>
 
 <script>
-import { getOrderDetail } from "@/api/orders"
+import { getOrderDetail, updateOrderStatus } from "@/api/orders"
 
 export default {
 	name: "OrderDetailsView",
@@ -194,20 +194,26 @@ export default {
 			this.$router.back()
 		},
 
-		cancelOrder() {
+		async cancelOrder() {
 			if (this.order.status !== "pending") return
 
 			const confirmed = window.confirm("确认取消订单吗？")
 			if (!confirmed) return
 
-			const updateTime = this.formatNow()
-			this.order = {
-				...this.order,
-				status: "cancelled",
-				updateTime
+			try {
+				await this.unwrapPayload(await updateOrderStatus(this.order.id, { status: "cancelled" }))
+				const updateTime = this.formatNow()
+				this.order = {
+					...this.order,
+					status: "cancelled",
+					updateTime
+				}
+				this.saveOrderStatus(this.order.id, "cancelled", updateTime)
+				this.$message?.success?.("取消订单成功")
+			} catch (error) {
+				const msg = error?.response?.data?.message || error?.message || "取消订单失败"
+				this.$message?.error?.(msg)
 			}
-
-			this.saveOrderStatus(this.order.id, "cancelled", updateTime)
 		},
 
 		formatNow() {

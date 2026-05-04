@@ -45,7 +45,7 @@ public class AppointmentOrderServiceImpl implements AppointmentOrderService {
             return null;
         }
         // 验证订单归属
-        Integer orderUserId = (Integer) order.get("user_id");
+        Integer orderUserId = (Integer) order.get("userId");
         if (!orderUserId.equals(userId)) {
             return null;
         }

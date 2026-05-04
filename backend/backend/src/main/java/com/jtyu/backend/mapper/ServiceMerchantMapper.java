@@ -11,13 +11,14 @@ import java.util.Map;
 public interface ServiceMerchantMapper {
     // ========== 商户查询 ==========
 
-    @Select("SELECT service_id, name, category, address, images, phone, rating, review_count, " +
-            "business_hours, description, services_offered " +
+    @Select("SELECT  service_id as serviceId, name, category, address, images, phone, rating, review_count as reviewCount, description, services_offered " +
             "FROM service WHERE service_id = #{serviceId}")
     Map<String, Object> selectById(@Param("serviceId") Integer serviceId);
 
     @Select("<script>" +
-            "SELECT service_id, name, category, address, images, phone, rating, review_count, description " +
+            "SELECT service_id, name, category, address, images, phone, rating, review_count, description, " +
+            "(SELECT MIN(CAST(JSON_EXTRACT(item, '$.price') AS DECIMAL(10,2))) " +
+            "FROM JSON_TABLE(services_offered, '$[*]' COLUMNS(item JSON PATH '$')) AS jt) AS min_price " +
             "FROM service WHERE 1=1 " +
             "<if test='keyword != null and keyword != \"\"'>" +
             "AND (name LIKE CONCAT('%', #{keyword}, '%') OR address LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))" +
@@ -38,6 +39,8 @@ public interface ServiceMerchantMapper {
             "<if test='category != null and category != \"\"'> AND category = #{category}</if>" +
             "</script>")
     Long countList(@Param("keyword") String keyword, @Param("category") String category);
+
+
 
     // ========== 评分更新 ==========
 

@@ -1,9 +1,8 @@
 import { shallowMount } from '@vue/test-utils';
 import FocusView from '@/views/Users/FocusView.vue';
-import { followUser, getMyFollowing, unfollowUser } from '@/api/users';
+import { getMyFollowing, unfollowUser } from '@/api/users';
 
 jest.mock('@/api/users', () => ({
-  followUser: jest.fn(),
   getMyFollowing: jest.fn(),
   unfollowUser: jest.fn()
 }));

@@ -18,15 +18,19 @@ public class ServiceReviewController {
     @GetMapping("/services/{serviceId}/reviews")
     public Result getServiceReviews(@PathVariable Integer serviceId,
                                     @RequestParam(defaultValue = "1") Integer page,
-                                    @RequestParam(defaultValue = "20") Integer pageSize) {
-        Map<String, Object> result = serviceReviewService.getReviewsByServiceId(serviceId, page, pageSize);
+                                    @RequestParam(defaultValue = "20") Integer pageSize,
+                                    @RequestAttribute(required = false) Integer currentUserId) {
+        Map<String, Object> result = serviceReviewService.getReviewsByServiceId(serviceId, page, pageSize, currentUserId);
         return Result.success(result);
     }
 
-    // GET /services/{serviceId}/reviews/{reviewId}/replies - 获取商户评论的回复列表（新增）
+    // GET /services/{serviceId}/reviews/{reviewId}/replies - 获取商户评论的回复列表
     @GetMapping("/services/{serviceId}/reviews/{reviewId}/replies")
-    public Result getReviewReplies(@PathVariable Integer reviewId) {
-        List<Map<String, Object>> replies = serviceReviewService.getRepliesByReviewId(reviewId);
+    public Result getReviewReplies(@PathVariable Integer serviceId,
+                                   @PathVariable Integer reviewId,
+                                   @RequestAttribute(required = false) Integer currentUserId
+    ) {
+        List<Map<String, Object>> replies = serviceReviewService.getRepliesByReviewId(reviewId,currentUserId);
         return Result.success(replies);
     }
 
@@ -51,13 +55,14 @@ public class ServiceReviewController {
     public Result replyServiceReview(@PathVariable Integer serviceId,
                                      @PathVariable Integer reviewId,
                                      @RequestAttribute Integer currentUserId,
-                                     @RequestBody Map<String, String> params) {
-        String content = params.get("content");
+                                     @RequestBody Map<String, Object> params) {
+        String content = (String) params.get("content");
+        List<String> images = (List<String>) params.get("images");
         if (content == null || content.isEmpty()) {
             return Result.error("回复内容不能为空");
         }
 
-        Integer replyId = serviceReviewService.replyReview(currentUserId, serviceId, reviewId, content);
+        Integer replyId = serviceReviewService.replyReview(currentUserId, serviceId, reviewId, content,images);
         if (replyId != null) {
             return Result.success(replyId);
         }
@@ -84,5 +89,16 @@ public class ServiceReviewController {
             return Result.success("取消点赞成功");
         }
         return Result.error("取消点赞失败");
+    }
+    // DELETE /services/{serviceId}/reviews/{reviewId} - 删除商户评论
+    @DeleteMapping("/services/{serviceId}/reviews/{reviewId}")
+    public Result deleteServiceReview(@PathVariable Integer serviceId,
+                                      @PathVariable Integer reviewId,
+                                      @RequestAttribute Integer currentUserId) {
+        boolean success = serviceReviewService.deleteReview(reviewId, currentUserId);
+        if (success) {
+            return Result.success("删除成功");
+        }
+        return Result.error("删除失败");
     }
 }

@@ -26,12 +26,12 @@ export default {
   data() {
     return {
       menus: [
-        { name: "美容", icon: "✂️" },
-        { name: "遛狗", icon: "🐕" },
-        { name: "寄养", icon: "🏠" },
-        { name: "托管", icon: "❤️" },
-        { name: "医院", icon: "🩺" },
-        { name: "救助", icon: "❗" }
+        { name: "美容", icon: "✂️", en: "grooming"  },
+        { name: "遛狗", icon: "🐕", en: "walking"  },
+        { name: "寄养", icon: "🏠", en: "boarding"  },
+        { name: "托管", icon: "❤️", en: "sitting" },
+        { name: "医院", icon: "🩺", en: "vet"  },
+        { name: "救助", icon: "❗", en: "emergency" }
       ]
     };
   },
@@ -41,7 +41,7 @@ export default {
       this.$router.push({
         path: "/service",
         query: {
-          type: item.name
+          type: item.en
         }
       });
     }

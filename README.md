@@ -1,6 +1,10 @@
 # 第三组-PawHub（爪爪集）- 宠物社交服务平台
 
+[![CI](https://github.com/Peachy77/Pet-Socialization-Service-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Peachy77/Pet-Socialization-Service-Platform/actions/workflows/ci.yml)
 
+[![Frontend Coverage](https://codecov.io/gh/Peachy77/Pet-Socialization-Service-Platform/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/Peachy77/Pet-Socialization-Service-Platform)
+
+[![Backend Coverage](https://codecov.io/gh/Peachy77/Pet-Socialization-Service-Platform/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/Peachy77/Pet-Socialization-Service-Platform)
 
 ### 团队成员
 

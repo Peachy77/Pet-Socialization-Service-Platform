@@ -32,9 +32,9 @@ export function createOrder(data) {
 }
 
 // 获取当前用户订单列表
-// 不传 userId 时走 /users/me/orders，由后端根据 token 识别
-export function getMyOrders(params = {}, userId) {
-  return apiClient.get(getOrderScopedPath(userId, ""), { params });
+export function getMyOrders(params = {}) {
+  return apiClient.get("/orders", { params });
+  // return apiClient.get(getOrderScopedPath(userId, ""), { params });
 }
 
 // 获取订单详情
@@ -51,9 +51,4 @@ export function cancelOrder(orderId) {
 // data 建议字段：status, update_time, remark
 export function updateOrderStatus(orderId, data) {
   return apiClient.patch(`/orders/${orderId}/status`, data);
-}
-
-// 预约创建别名：更贴近业务语义
-export function createAppointmentOrder(data) {
-  return createOrder(data);
 }

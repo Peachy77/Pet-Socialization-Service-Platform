@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/pawhub/package-lock.json
+      - run: npm ci --prefix frontend/pawhub
+      - run: npm run lint --prefix frontend/pawhub
+      - run: npm test --prefix frontend/pawhub
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: frontend/pawhub/coverage/lcov.info
+          flags: frontend			
+
+  backend:
+    runs-on: ubuntu-latest
+    
+    # 如果需要数据库，取消下面的注释
+    # services:
+    #   postgres:
+    #     image: postgres:16
+    #     env:
+    #       POSTGRES_DB: testdb
+    #       POSTGRES_USER: user
+    #       POSTGRES_PASSWORD: pass
+    #     ports:
+    #       - 5432:5432
+    #     options: --health-cmd="pg_isready -U user" --health-interval=10s --health-timeout=5s --health-retries=5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      
+      - name: Run tests with Maven
+        run: mvn clean test
+        working-directory: backend/backend 
+      
+      # 如果 pom.xml 在 backend 目录下
+      # TODO: 等 JaCoCo 配置好后再取消注释
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: ./backend/target/site/jacoco/jacoco.xml
+      #     flags: backend	
