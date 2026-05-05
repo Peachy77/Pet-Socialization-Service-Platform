@@ -1,1 +1,12 @@
-#
+# === 前端 (frontend/pawhub) ===
+frontend/pawhub/node_modules/
+frontend/pawhub/coverage/
+frontend/pawhub/.env.local
+frontend/pawhub/.env.*.local
+frontend/pawhub/dist/
+frontend/pawhub/.cache/
+
+# === 环境变量 ===
+.env
+.env.local
+.env.*.local
