@@ -235,4 +235,23 @@ public class PostServiceImplTest {
         assertFalse(result);
         verify(postMapper, never()).decrementLikeCount(anyInt());
     }
+
+    // ========== isLiked 测试 ==========
+    @Test
+    void testIsLiked_True() {
+        when(likeMapper.exists(1, 100)).thenReturn(1);
+
+        boolean result = postService.isLiked(100, 1);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsLiked_False() {
+        when(likeMapper.exists(1, 100)).thenReturn(0);
+
+        boolean result = postService.isLiked(100, 1);
+
+        assertFalse(result);
+    }
 }

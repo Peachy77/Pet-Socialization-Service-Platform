@@ -130,4 +130,51 @@ public class AppointmentOrderServiceImplTest {
 
         assertFalse(result);
     }
+
+    // ========== getUserOrders 测试 ==========
+    @Test
+    void testGetUserOrders_Success() {
+        List<Map<String, Object>> mockList = new ArrayList<>();
+        Map<String, Object> order = new HashMap<>();
+        order.put("order_id", 100);
+        order.put("status", "pending");
+        mockList.add(order);
+
+        when(appointmentOrderMapper.selectByUserId(eq(1), eq("pending"), eq(0), eq(20)))
+                .thenReturn(mockList);
+        when(appointmentOrderMapper.countByUserId(eq(1), eq("pending"))).thenReturn(2L);
+
+        Map<String, Object> result = orderService.getUserOrders(1, "pending", 1, 20);
+
+        assertNotNull(result);
+        assertEquals(2L, result.get("total"));
+        assertEquals(1, result.get("page"));
+        assertEquals(20, result.get("pageSize"));
+        assertNotNull(result.get("list"));
+    }
+
+    @Test
+    void testGetUserOrders_EmptyList() {
+        when(appointmentOrderMapper.selectByUserId(eq(1), eq("completed"), eq(0), eq(20)))
+                .thenReturn(new ArrayList<>());
+        when(appointmentOrderMapper.countByUserId(eq(1), eq("completed"))).thenReturn(0L);
+
+        Map<String, Object> result = orderService.getUserOrders(1, "completed", 1, 20);
+
+        assertNotNull(result);
+        assertEquals(0L, result.get("total"));
+        assertTrue(((List) result.get("list")).isEmpty());
+    }
+
+    @Test
+    void testGetUserOrders_NullStatus() {
+        List<Map<String, Object>> mockList = new ArrayList<>();
+        when(appointmentOrderMapper.selectByUserId(eq(1), isNull(), eq(0), eq(20)))
+                .thenReturn(mockList);
+        when(appointmentOrderMapper.countByUserId(eq(1), isNull())).thenReturn(0L);
+
+        Map<String, Object> result = orderService.getUserOrders(1, null, 1, 20);
+
+        assertNotNull(result);
+    }
 }

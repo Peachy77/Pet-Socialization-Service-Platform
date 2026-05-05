@@ -373,4 +373,13 @@ public class UserServiceImplTest {
 
         assertEquals(0, result);
     }
+
+    @Test
+    void testGetTotalLikeCount_Existing() {
+        when(userMapper.selectTotalLikeCount(1)).thenReturn(100);
+
+        Integer result = userService.getTotalLikeCount(1);
+
+        assertEquals(100, result);
+    }
 }

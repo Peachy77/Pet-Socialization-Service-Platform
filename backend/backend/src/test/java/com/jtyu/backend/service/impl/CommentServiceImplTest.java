@@ -147,6 +147,21 @@ public class CommentServiceImplTest {
         verify(postMapper, never()).incrementCommentCount(anyInt());
     }
 
+    @Test
+    void testCreateComment_WithNullImages() {
+        when(commentMapper.insert(any(Comment.class))).thenAnswer(invocation -> {
+            Comment c = invocation.getArgument(0);
+            c.setCommentId(102);
+            return 1;
+        });
+        when(postMapper.incrementCommentCount(100)).thenReturn(1);
+
+        Integer commentId = commentService.createComment(1, 100, 0, "无图片评论", null);
+
+        assertNotNull(commentId);
+        verify(commentMapper, times(1)).insert(any(Comment.class));
+    }
+
     // ========== deleteComment 测试 ==========
     @Test
     void testDeleteComment_Success() {
