@@ -148,6 +148,12 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>com/jtyu/backend/model/**</exclude>
+                        <exclude>com/jtyu/backend/BackendApplication.class</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
 
             <plugin>
