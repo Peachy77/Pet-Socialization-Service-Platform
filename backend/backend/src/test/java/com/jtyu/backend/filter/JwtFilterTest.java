@@ -33,7 +33,7 @@ public class JwtFilterTest {
     void setUp() throws Exception {
         // 手动初始化 JWT 密钥（解决 Key argument cannot be null 问题）
 //        String testSecret = "TXlTdXBlclNlY3JldEtleUZvclBldFNvY2lhbDEyMzQ1Njc4OTBhYmNkZWY=";
-        String testSecret = System.getenv().getOrDefault("JWT_SECRET", "dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3Q=");
+        String testSecret = System.getenv().getOrDefault("JWT_SECRET", "dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3Qtd2l0aC1sZW5ndGgtMzItYnl0ZXMxMjM0");
         byte[] keyBytes = Base64.getDecoder().decode(testSecret);
         Key secretKey = io.jsonwebtoken.security.Keys.hmacShaKeyFor(keyBytes);
 
