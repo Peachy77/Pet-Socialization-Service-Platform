@@ -157,3 +157,9 @@ public class CorsConfig implements WebMvcConfigurer {
   - **适用**
   - **处理方式：**在 **PowerShell** 中执行`mvn org.owasp:dependency-check-maven:check`,使用 OWASP Dependency-Check 工具进行依赖漏洞扫描。初步分析，除 **Spring Boot 2.7.6** 和 **Fastjson 1.2.83** 存在已知CVE 外，其余核心依赖（JJWT 0.11.5、OkHttp 4.12.0、MyBatis 2.3.0、Lombok 1.18.30）均无高危漏洞。
 
+
+
+## 3、**CI** **自动化安全扫描**
+
+- **密钥泄露扫描** `.github/workflows/security.yml`通过
+
