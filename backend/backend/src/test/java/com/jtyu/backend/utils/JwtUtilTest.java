@@ -1,16 +1,32 @@
 package com.jtyu.backend.utils;
 
 import io.jsonwebtoken.Claims;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
+import java.lang.reflect.Field;
+import java.security.Key;
+import java.util.Base64;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 public class JwtUtilTest {
-    
+
+    @BeforeAll
+    static void setUp() throws Exception {
+        // 手动初始化 JWT 密钥（不依赖 Spring）
+        String testSecret = "TXlTdXBlclNlY3JldEtleUZvclBldFNvY2lhbDEyMzQ1Njc4OTBhYmNkZWY=";
+        byte[] keyBytes = Base64.getDecoder().decode(testSecret);
+        Key secretKey = io.jsonwebtoken.security.Keys.hmacShaKeyFor(keyBytes);
+
+        Field secretKeyField = JwtUtil.class.getDeclaredField("SECRET_KEY");
+        secretKeyField.setAccessible(true);
+        secretKeyField.set(null, secretKey);
+    }
+
     @Test
     void testGenerateToken_Success() {
         String token = JwtUtil.generateToken(1, "test@example.com");
