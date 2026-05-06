@@ -1,0 +1,6 @@
+[[allowlist]]
+description = "Ignore test files with dummy JWT secrets"
+paths = [
+    "src/test/java/com/jtyu/backend/utils/JwtUtilTest.java",
+    "src/test/java/com/jtyu/backend/filter/JwtFilterTest.java",
+]
