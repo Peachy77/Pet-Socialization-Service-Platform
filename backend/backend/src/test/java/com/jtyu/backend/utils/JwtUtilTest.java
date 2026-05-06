@@ -2,8 +2,13 @@ package com.jtyu.backend.utils;
 
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
 
 public class JwtUtilTest {
     @Test
