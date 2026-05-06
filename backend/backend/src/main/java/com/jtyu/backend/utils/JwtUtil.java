@@ -4,17 +4,35 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+@Component
 public class JwtUtil {
-    private static final Key SECRET_KEY = Keys.hmacShaKeyFor("mySuperSecretKeyForPetSocial1234567890abcdef".getBytes());
+//    private static final Key SECRET_KEY = Keys.hmacShaKeyFor("mySuperSecretKeyForPetSocial1234567890abcdef".getBytes());
+
+    private static Key SECRET_KEY;
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
 
     // Token 有效期：7天（可根据需要调整）
     private static final long EXPIRATION_TIME_MS = 7 * 24 * 60 * 60 * 1000L;
+
+    @PostConstruct
+    public void init() {
+        // 从配置读取的 Base64 密钥解码
+        byte[] keyBytes = Base64.getDecoder().decode(jwtSecret);
+        SECRET_KEY = Keys.hmacShaKeyFor(keyBytes);
+        System.out.println("JwtUtil 初始化完成，密钥长度: " + keyBytes.length + " bytes");
+    }
 
     /**
      * 生成 JWT token（存入 userId 和 email）

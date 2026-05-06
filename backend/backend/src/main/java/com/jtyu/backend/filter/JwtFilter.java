@@ -25,16 +25,17 @@ public class JwtFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
 
-        // 1. 处理 CORS 跨域
-        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8081");
-        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-        response.setHeader("Access-Control-Allow-Headers", "Content-Type, token, Authorization");
-        response.setHeader("Access-Control-Allow-Credentials", "true");
+//        // 1. 处理 CORS 跨域
+//        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8081");
+//        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+//        response.setHeader("Access-Control-Allow-Headers", "Content-Type, token, Authorization");
+//        response.setHeader("Access-Control-Allow-Credentials", "true");
 
         // 2. OPTIONS 预检请求直接放行
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             System.out.println("放行 OPTIONS 预检请求");
-            response.setStatus(HttpServletResponse.SC_OK);
+//            response.setStatus(HttpServletResponse.SC_OK);
+            chain.doFilter(request, response);
             return;
         }
 
