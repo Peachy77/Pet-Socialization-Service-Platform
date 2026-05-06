@@ -19,7 +19,7 @@ public class JwtUtilTest {
     static void setUp() throws Exception {
         // 手动初始化 JWT 密钥（不依赖 Spring）
 //        String testSecret = "TXlTdXBlclNlY3JldEtleUZvclBldFNvY2lhbDEyMzQ1Njc4OTBhYmNkZWY=";
-        String testSecret = System.getenv().getOrDefault("JWT_SECRET", "test-secret-for-unit-test-only");
+        String testSecret = System.getenv().getOrDefault("JWT_SECRET", "dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3Q=");
         byte[] keyBytes = Base64.getDecoder().decode(testSecret);
         Key secretKey = io.jsonwebtoken.security.Keys.hmacShaKeyFor(keyBytes);
 
