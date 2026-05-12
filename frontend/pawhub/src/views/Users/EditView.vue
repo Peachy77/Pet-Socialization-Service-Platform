@@ -128,13 +128,43 @@ export default {
 
 		// 上传到后端
 		uploadFile(file).then(res => {
-			const url = res.data.data  // 后端返回的 URL
+			console.log('[EditView] uploadFile response:', res)
+			console.log('[EditView] response.data:', res && res.data)
 
-			this.form.avatar = url
-			this.avatarPreview = url
+			// 尝试多种路径解析后端返回的图片 URL
+			let url = ''
+			if (typeof res === 'string') {
+				url = res
+			} else if (res && res.data) {
+				if (typeof res.data === 'string') {
+					url = res.data
+				} else if (res.data.data) {
+					// 兼容 { data: 'url' } 或 { data: { url: '...' } }
+					url = typeof res.data.data === 'string' ? res.data.data : (res.data.data.url || '')
+				} else {
+					url = res.data.url || res.data.path || ''
+				}
+			}
 
-			this.$message.success("头像上传成功")
-		}).catch(() => {
+			// 额外兼容数组或嵌套结构
+			if (!url) {
+				try {
+					url = (res.data && (res.data[0] && (res.data[0].url || res.data[0].path))) || ''
+				} catch (e) {
+					// ignore
+				}
+			}
+
+			if (url) {
+				this.form.avatar = url
+				this.avatarPreview = url
+				this.$message.success("头像上传成功")
+			} else {
+				console.warn('[EditView] 未在响应中找到图片 URL，请查看上方完整响应。')
+				this.$message.error("头像上传失败（未返回 URL）")
+			}
+		}).catch(err => {
+			console.error('[EditView] uploadFile error:', err)
 			this.$message.error("头像上传失败")
 		})
 		},
