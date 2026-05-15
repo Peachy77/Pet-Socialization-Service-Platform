@@ -1,0 +1,55 @@
+﻿
+> pawhub@0.1.0 test:unit
+> vue-cli-service test:unit --ci --coverage --coverage
+
+--------------------------|---------|----------|---------|---------|-------------------
+File                      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+--------------------------|---------|----------|---------|---------|-------------------
+All files                 |   95.41 |    48.68 |      97 |   95.41 |                   
+ api                      |   93.54 |    38.88 |   95.83 |   93.54 |                   
+  ai.js                   |     100 |      100 |     100 |     100 |                   
+  client.js               |     100 |      100 |     100 |     100 |                   
+  messages.js             |     100 |       50 |     100 |     100 | 15-54             
+  orders.js               |      90 |       76 |     100 |      90 | 19                
+  posts.js                |     100 |    45.45 |     100 |     100 | 3-5,13-62         
+  services.js             |   77.77 |        0 |    87.5 |   77.77 | 5-24              
+  upload.js               |     100 |      100 |     100 |     100 |                   
+  users.js                |      95 |    33.33 |   94.44 |      95 | 114               
+ assets                   |     100 |      100 |     100 |     100 |                   
+  cat.png                 |     100 |      100 |     100 |     100 |                   
+ components               |     100 |    39.13 |     100 |     100 |                   
+  BottomNav.vue           |     100 |      100 |     100 |     100 |                   
+  MessageList.vue         |     100 |      100 |     100 |     100 |                   
+  OrderList.vue           |     100 |      100 |     100 |     100 |                   
+  PostCard.vue            |     100 |       50 |     100 |     100 | 1                 
+  PostCommentList.vue     |     100 |        0 |     100 |     100 | 1                 
+  SearchBar.vue           |     100 |    66.66 |     100 |     100 | 1                 
+  ServiceCard.vue         |     100 |        0 |     100 |     100 | 1                 
+  ServiceMenu.vue         |     100 |      100 |     100 |     100 |                   
+  UserCard.vue            |     100 |      100 |     100 |     100 |                   
+ views/Main               |     100 |    85.71 |     100 |     100 |                   
+  HomeView.vue            |     100 |      100 |     100 |     100 |                   
+  MessageView.vue         |     100 |      100 |     100 |     100 |                   
+  MineView.vue            |     100 |      100 |     100 |     100 |                   
+  PublishView.vue         |     100 |    66.66 |     100 |     100 | 1                 
+ views/Messages           |     100 |    83.33 |     100 |     100 |                   
+  MessagesDetailsView.vue |     100 |    83.33 |     100 |     100 | 1                 
+ views/Posts              |     100 |    66.66 |     100 |     100 |                   
+  PostDetailsView.vue     |     100 |    66.66 |     100 |     100 | 105               
+ views/Search             |     100 |       80 |     100 |     100 |                   
+  SearchResultsView.vue   |     100 |      100 |     100 |     100 |                   
+  SearchView.vue          |     100 |    66.66 |     100 |     100 | 1                 
+ views/Service            |     100 |    66.66 |     100 |     100 |                   
+  AppointmentView.vue     |     100 |        0 |     100 |     100 | 1                 
+  ServiceDetailsView.vue  |     100 |      100 |     100 |     100 |                   
+  ServiceMerchantView.vue |     100 |    66.66 |     100 |     100 | 1                 
+ views/Users              |     100 |       75 |     100 |     100 |                   
+  EditView.vue            |     100 |        0 |     100 |     100 | 1                 
+  FansView.vue            |     100 |      100 |     100 |     100 |                   
+  FocusView.vue           |     100 |      100 |     100 |     100 |                   
+  LoginView.vue           |     100 |        0 |     100 |     100 | 1                 
+  OrderDetailsView.vue    |     100 |      100 |     100 |     100 |                   
+  RegisterView.vue        |     100 |    66.66 |     100 |     100 | 1                 
+  SettingView.vue         |     100 |      100 |     100 |     100 |                   
+  UserInformationView.vue |     100 |      100 |     100 |     100 |                   
+--------------------------|---------|----------|---------|---------|-------------------

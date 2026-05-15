@@ -1,0 +1,13 @@
+services:
+  frontend:
+    build: 
+      context: ./frontend/pawhub
+      target: development  
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./frontend/pawhub:/app
+      - /app/node_modules
+    environment:
+      - VUE_APP_API_URL=http://localhost:8080   
+   
