@@ -34,9 +34,9 @@
         />
       </div>
 
-      <div class="forget">
+      <!-- <div class="forget">
         <a href="#">忘记密码？</a>
-      </div>
+      </div> -->
 
       <button class="login-btn" @click="handleLogin">
         登录
