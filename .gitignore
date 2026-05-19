@@ -10,3 +10,4 @@ frontend/pawhub/.cache/
 .env
 .env.local
 .env.*.local
+"secrets/" 

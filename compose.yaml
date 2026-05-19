@@ -1,18 +1,76 @@
 services:
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    # volumes:
+    #   - maven-repo:/root/.m2
+    env_file:
+      - ./backend/backend/.env 
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=pet_social
+      - DB_USER=postgres
+      - DB_PASSWORD=dev123
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pet-network
+
   frontend:
-    build: 
+    build:
       context: ./frontend/pawhub
-      target: development  
+      target: development
     ports:
       - "8081:8080"
     volumes:
       - ./frontend/pawhub:/app
       - /app/node_modules
     environment:
-      - VUE_APP_API_URL=http://localhost:8080   
+      - VUE_APP_API_URL=http://localhost:8080
+    depends_on:
+      - backend
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
-      interval: 10s      # 每10秒检查一次
-      timeout: 5s        # 每次检查超时时间5秒
-      retries: 3         # 连续失败3次视为 unhealthy
-      start_period: 30s  # 容器启动后等待30秒才开始检查
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pet-network
+
+  db:
+    image: docker.m.daocloud.io/library/postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dev123
+      POSTGRES_DB: pet_social
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pet-network
+
+volumes:
+  pgdata:
+
+networks:
+  pet-network:
+    driver: bridge
