@@ -31,6 +31,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 # 开发阶段(构建请用docker build --target development -t (例test-dev镜像名称) .命令)
 FROM node:18-alpine AS development
+RUN apk add --no-cache wget
 WORKDIR /app
 COPY package*.json ./
 RUN npm install

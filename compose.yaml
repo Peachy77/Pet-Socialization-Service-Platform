@@ -10,4 +10,9 @@ services:
       - /app/node_modules
     environment:
       - VUE_APP_API_URL=http://localhost:8080   
-   
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 10s      # 每10秒检查一次
+      timeout: 5s        # 每次检查超时时间5秒
+      retries: 3         # 连续失败3次视为 unhealthy
+      start_period: 30s  # 容器启动后等待30秒才开始检查
