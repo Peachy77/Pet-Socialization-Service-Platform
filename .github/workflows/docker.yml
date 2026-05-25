@@ -45,7 +45,7 @@ jobs:
           severity: CRITICAL,HIGH
           format: table
       
-     build-backend:
+  build-backend:
     runs-on: ubuntu-latest
     permissions:
       contents: read
