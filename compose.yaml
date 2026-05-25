@@ -5,17 +5,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    # volumes:
-    #   - maven-repo:/root/.m2
     env_file:
       - ./backend/backend/.env 
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=pet_social
-      - DB_USER=postgres
-      - DB_PASSWORD=dev123
+      # 覆盖数据库配置（Docker 环境）
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/pawhub?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=dev123
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+      # 覆盖文件路径（Docker 环境）
+      - FILE_BASE_PATH=/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -51,17 +50,17 @@ services:
       - pet-network
 
   db:
-    image: docker.m.daocloud.io/library/postgres:17-alpine
+    image: mysql:8.0
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dev123
-      POSTGRES_DB: pet_social
+      MYSQL_ROOT_PASSWORD: dev123
+      MYSQL_DATABASE: pawhub
+
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pdev123"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -69,7 +68,7 @@ services:
       - pet-network
 
 volumes:
-  pgdata:
+  mysql-data:
 
 networks:
   pet-network:

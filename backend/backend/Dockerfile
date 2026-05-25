@@ -5,19 +5,19 @@ WORKDIR /app
 
 # 配置 Maven 使用阿里云镜像源（加速下载，避免网络问题）
 RUN mkdir -p /root/.m2 && \
-    echo '<?xml version="1.0" encoding="UTF-8"?>
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
-    <mirrors>
-        <mirror>
-            <id>aliyunmaven</id>
-            <name>Aliyun Maven</name>
-            <url>https://maven.aliyun.com/repository/public</url>
-            <mirrorOf>central</mirrorOf>
-        </mirror>
-    </mirrors>
-</settings>' > /root/.m2/settings.xml
+    echo '<?xml version="1.0" encoding="UTF-8"?>' > /root/.m2/settings.xml && \
+    echo '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"' >> /root/.m2/settings.xml && \
+    echo '  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> /root/.m2/settings.xml && \
+    echo '  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">' >> /root/.m2/settings.xml && \
+    echo '  <mirrors>' >> /root/.m2/settings.xml && \
+    echo '    <mirror>' >> /root/.m2/settings.xml && \
+    echo '      <id>aliyunmaven</id>' >> /root/.m2/settings.xml && \
+    echo '      <name>Aliyun Maven</name>' >> /root/.m2/settings.xml && \
+    echo '      <url>https://maven.aliyun.com/repository/public</url>' >> /root/.m2/settings.xml && \
+    echo '      <mirrorOf>central</mirrorOf>' >> /root/.m2/settings.xml && \
+    echo '    </mirror>' >> /root/.m2/settings.xml && \
+    echo '  </mirrors>' >> /root/.m2/settings.xml && \
+    echo '</settings>' >> /root/.m2/settings.xml
 
 # 先复制 pom.xml 以利用 Docker 缓存
 COPY pom.xml .
@@ -29,6 +29,7 @@ RUN mvn clean package -DskipTests -B
 
 # 第二阶段：运行阶段
 FROM eclipse-temurin:17-jre-alpine
+RUN apk add --no-cache wget
 
 # 创建非 root 用户
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
@@ -49,7 +50,7 @@ EXPOSE 8080
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
 # 启动命令
 ENTRYPOINT ["java", "-jar", "app.jar"]
