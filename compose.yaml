@@ -1,18 +1,75 @@
 services:
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/backend/.env 
+    environment:
+      # 覆盖数据库配置（Docker 环境）
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/pawhub?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=dev123
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+      # 覆盖文件路径（Docker 环境）
+      - FILE_BASE_PATH=/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pet-network
+
   frontend:
-    build: 
+    build:
       context: ./frontend/pawhub
-      target: development  
+      target: development
     ports:
       - "8081:8080"
     volumes:
       - ./frontend/pawhub:/app
       - /app/node_modules
     environment:
-      - VUE_APP_API_URL=http://localhost:8080   
+      - VUE_APP_API_URL=http://localhost:8080
+    depends_on:
+      - backend
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
-      interval: 10s      # 每10秒检查一次
-      timeout: 5s        # 每次检查超时时间5秒
-      retries: 3         # 连续失败3次视为 unhealthy
-      start_period: 30s  # 容器启动后等待30秒才开始检查
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - pet-network
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: dev123
+      MYSQL_DATABASE: pawhub
+
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql 
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pdev123"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pet-network
+
+volumes:
+  mysql-data:
+
+networks:
+  pet-network:
+    driver: bridge

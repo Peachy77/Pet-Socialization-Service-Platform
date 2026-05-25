@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+.mvn
+
+# 构建产物
+target/
+*.jar
+*.war
+
+# 日志
+*.log
+
+# 环境变量
+.env
+.env.*
+application-prod.properties
+
+# 测试
+src/test/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Node（如果有前端混在根目录）
+node_modules/
+
+# 其他
+*.md
+.docker

@@ -1,13 +1,62 @@
+# services:
+#   frontend:
+#     build:
+#       context: ./frontend/pawhub
+#       target: production
+#     ports:
+#       - "8081:80"
+#     restart: unless-stopped
+#     healthcheck:
+#       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 3
+#       start_period: 10s
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 128M
+
 services:
-  frontend:
-    build:
-      context: ./frontend/pawhub
-      target: production
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY}/backend:${VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=pawhub
+      - DB_USER=root
+    secrets:
+      - db_password
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    networks:
+      - pet-network
+
+  frontend:     
+    image: ghcr.io/${GITHUB_REPOSITORY}/frontend:${VERSION:-latest}
+    restart: unless-stopped
     ports:
       - "8081:80"
-    restart: unless-stopped
+    depends_on:
+      - backend
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -16,3 +65,35 @@ services:
       resources:
         limits:
           memory: 128M
+          cpus: "0.2"
+    networks:
+      - pet-network
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_DATABASE: pawhub
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$(cat /run/secrets/db_password)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    secrets:
+      - db_password
+    networks:
+      - pet-network
+
+volumes:
+  mysql-data:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+
+networks:
+  pet-network:
+    driver: bridge
