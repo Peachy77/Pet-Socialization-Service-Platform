@@ -53,7 +53,9 @@ public class JwtFilter implements Filter {
         // 3. 放行的路径列表（不需要 token）
         if ("/users/login".equals(uri) ||
                 "/users/register".equals(uri)||
-                "/".equals(uri)) {
+                "/".equals(uri)||
+                "/health".equals(uri) ||
+                uri.startsWith("/actuator")) {
             System.out.println("放行路径: " + uri);
             chain.doFilter(request, response);
             return;
